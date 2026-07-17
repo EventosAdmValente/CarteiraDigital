@@ -1,0 +1,3032 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veloce - Simulador de Juros Compostos & Carteira</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7c3aed">
+  <link rel="apple-touch-icon" href="icones/icon-192.jpg">
+  <link rel="icon" type="image/jpeg" href="icones/icon-192.jpg">
+
+  <style>
+    body {
+      background-color: #09090b;
+      color: #fafafa;
+    }
+    ::-webkit-scrollbar {
+      display: none;
+      width: 0px;
+      height: 0px;
+    }
+    html, body, div, section, main {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+    .flash-green {
+      animation: flashGreen 1s ease-out;
+    }
+    .flash-red {
+      animation: flashRed 1s ease-out;
+    }
+    @keyframes flashGreen {
+      0% { background-color: rgba(34, 197, 94, 0.2); }
+      100% { background-color: transparent; }
+    }
+    @keyframes flashRed {
+      0% { background-color: rgba(239, 68, 68, 0.2); }
+      100% { background-color: transparent; }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-violet-600/10 rounded-xl border border-violet-500/20">
+          <i data-lucide="zap" class="w-6 h-6 text-violet-400"></i>
+        </div>
+        <div>
+          <h1 class="font-sans font-bold text-lg tracking-tight text-white flex items-center gap-2">
+            CARTEIRA DIGITAL
+          </h1>
+          <p class="text-xs text-zinc-400">Cálculos com Extrema Precisão</p>
+        </div>
+      </div>
+
+      <!-- Financial Quotes & Configs -->
+      <div class="flex flex-wrap items-center gap-4">
+        <!-- USD quote -->
+        <div class="bg-zinc-900 border border-zinc-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs">
+          <span class="text-zinc-500 font-mono">DÓLAR:</span>
+          <strong id="usd-quote" class="font-mono text-zinc-300">Carregando...</strong>
+        </div>
+
+        <!-- SELIC override control -->
+        <div class="bg-zinc-900 border border-zinc-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs">
+          <span class="text-zinc-500 font-mono">SELIC ANUAL:</span>
+          <input type="number" id="selic-input" step="0.01" class="w-20 bg-zinc-950 text-violet-400 text-center font-bold font-mono border border-zinc-800 rounded px-1" value="11.75">
+          <span class="text-zinc-500">%</span>
+          <button id="selic-mode-btn" class="text-[10px] bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-300 hover:bg-zinc-700">AUTO</button>
+        </div>
+
+        <!-- CDI override control -->
+        <div class="bg-zinc-900 border border-zinc-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs">
+          <span class="text-zinc-500 font-mono">CDI ANUAL:</span>
+          <input type="number" id="cdi-input" step="0.01" class="w-20 bg-zinc-950 text-violet-400 text-center font-bold font-mono border border-zinc-800 rounded px-1" value="11.75">
+          <span class="text-zinc-500">%</span>
+          <button id="cdi-mode-btn" class="text-[10px] bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-zinc-300 hover:bg-zinc-700">AUTO</button>
+        </div>
+
+        <!-- Global Visibility Toggle -->
+        <button id="visibility-btn" class="p-2 bg-zinc-900 border border-zinc-800/80 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Ocultar/Exibir Valores">
+          <i data-lucide="eye" id="visibility-icon" class="w-4 h-4"></i>
+        </button>
+
+        <!-- PWA Install Button -->
+        <button id="pwa-install-btn" class="hidden p-2 bg-violet-600/10 border border-violet-500/30 rounded-xl hover:bg-violet-600/20 text-violet-400 hover:text-violet-300" title="Instalar App">
+          <i data-lucide="download" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Variable Price Fluctuation controls -->
+        <div class="bg-zinc-900 border border-zinc-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 text-xs">
+          <button id="fluctuate-btn" class="flex items-center gap-1.5 text-zinc-400 hover:text-white transition">
+            <span class="w-2 h-2 rounded-full bg-zinc-600" id="fluctuate-indicator"></span>
+            <span id="fluctuate-btn-text" class="font-bold">AUTO OFF</span>
+          </button>
+          
+          <div class="h-3 w-px bg-zinc-800"></div>
+          
+          <!-- Timer control -->
+          <div class="flex items-center gap-1 font-mono text-zinc-500 text-[11px]">
+            <button id="interval-dec-btn" class="hover:text-white px-1.5 py-0.5 font-bold bg-zinc-950 border border-zinc-800 rounded transition">&minus;</button>
+            <span id="interval-display" class="text-zinc-300 font-bold min-w-[20px] text-center">6s</span>
+            <button id="interval-inc-btn" class="hover:text-white px-1.5 py-0.5 font-bold bg-zinc-950 border border-zinc-800 rounded transition">+</button>
+          </div>
+          
+          <div class="h-3 w-px bg-zinc-800"></div>
+          
+          <!-- Manual Update Button -->
+          <button id="manual-update-btn" class="text-[10px] bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded text-zinc-300 hover:bg-zinc-700 hover:text-white transition flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+            <span>ATUALIZAR</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+    <!-- Simulation Date Control Slider has been moved inside the Asset Detail Modal below Deductions -->
+
+    <!-- Core Metric Cards & Real-Time Wealth Rolling Ticker -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      
+      <!-- Card 1: Patrimônio Total com Ticker Milissegundos -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 relative overflow-hidden shadow-lg flex flex-col justify-between">
+        <div class="space-y-1">
+          <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">Patrimônio Total Bruto</span>
+          <div id="gross-total-container" class="text-2xl font-bold font-mono tracking-tight text-white select-all">
+            R$ 0,00
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-zinc-800/60 flex justify-between items-center text-[11px]">
+          <span class="text-zinc-500">Líquido estimado:</span>
+          <span id="net-total-display" class="font-mono font-medium text-zinc-300">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Rendimento Total Acumulado -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+        <div class="space-y-1">
+          <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">Rendimento Bruto Acumulado</span>
+          <div id="yield-total-display" class="text-2xl font-bold font-mono tracking-tight text-emerald-400">
+            R$ 0,00
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-zinc-800/60 flex justify-between items-center text-[11px]">
+          <span class="text-zinc-500">Impostos / Deduções:</span>
+          <span id="tax-total-display" class="font-mono font-medium text-red-400">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Prêmio Juros Compostos (Juros sobre Juros) -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Efeito "Juros sobre Juros"</span>
+            <span class="text-[9px] font-mono text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1 rounded">BOLA DE NEVE</span>
+          </div>
+          <div id="compound-premium-display" class="text-2xl font-bold font-mono tracking-tight text-violet-400">
+            R$ 0,00
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-zinc-800/60 flex justify-between items-center text-[11px]">
+          <span class="text-zinc-500">Em relação ao Juros Simples:</span>
+          <span id="compound-premium-percent" class="font-mono font-bold text-violet-300">+0.0%</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Velocidade de Geração de Riqueza Ticking Live -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between overflow-hidden">
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Velocidade de Geração</span>
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </div>
+          <div id="speed-display-monthly" class="text-xl font-bold font-mono tracking-tight text-zinc-100">
+            +R$ 0,00/mês
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-zinc-800/60 flex justify-between items-center text-[10px] font-mono">
+          <div class="text-left">
+            <span class="text-zinc-500 block">POR DIA</span>
+            <strong id="speed-display-daily" class="text-emerald-400">+R$ 0,00</strong>
+          </div>
+          <div class="text-right">
+            <span class="text-zinc-500 block">POR SEGUNDO</span>
+            <strong id="speed-display-second" class="text-violet-400">+R$ 0,00000</strong>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Allocation and Action Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Allocation Chart Card -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 lg:col-span-1 flex flex-col h-full justify-between">
+        <div>
+          <h3 class="font-semibold text-zinc-200 text-sm">Alocação de Ativos</h3>
+          <p class="text-xs text-zinc-500">Distribuição atual por categoria de investimento</p>
+        </div>
+        <div class="h-[180px] w-full relative flex items-center justify-center my-4">
+          <canvas id="allocation-chart"></canvas>
+          <div class="absolute flex flex-col items-center justify-center pointer-events-none text-center">
+            <span class="text-[9px] font-mono tracking-widest text-zinc-500">ATALHO</span>
+            <span id="chart-total-label" class="text-sm font-bold font-mono text-white">R$ 0</span>
+          </div>
+        </div>
+        <div id="chart-legend" class="grid grid-cols-2 gap-2 text-xs"></div>
+      </div>
+
+      <!-- Stats overview of categories -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 lg:col-span-2 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-zinc-200 text-sm flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-violet-400"></i>
+              Métricas Acumuladas por Classe de Ativos
+            </h3>
+            <p class="text-xs text-zinc-500">Análise agregada de rentabilidade</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="category-aggregates">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Active Investments Grid / Filters -->
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="font-sans font-bold text-lg text-white">Meus Investimentos</h2>
+          <p class="text-xs text-zinc-500">Gerencie e analise cada aplicação com rigor ANBIMA</p>
+        </div>
+        <button id="add-asset-btn" class="flex items-center justify-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-semibold text-xs rounded-xl transition shadow-lg shadow-violet-950/20">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          NOVO ATIVO
+        </button>
+      </div>
+
+      <!-- Filtering / Search Controls -->
+      <div class="bg-zinc-900/60 border border-zinc-800/80 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="relative w-full sm:w-80">
+          <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+          <input type="text" id="search-input" placeholder="Buscar por nome ou emissor..." class="w-full bg-zinc-950/80 text-zinc-300 placeholder-zinc-500 text-xs rounded-xl pl-10 pr-4 py-2 border border-zinc-800 focus:outline-none focus:border-violet-500 font-sans">
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 w-full sm:w-auto" id="filter-pills">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Assets grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="assets-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6 relative flex flex-col">
+      <button onclick="closeModal('detail-modal')" class="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="modal-category" class="text-[9px] font-mono font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded">CDB</span>
+            <div id="modal-live-badge-container"></div>
+          </div>
+          <h3 id="modal-title" class="text-xl font-bold text-white mt-2">CDB Banco Inter 110% CDI</h3>
+          <p id="modal-dates" class="text-xs text-zinc-500 mt-1">Aplicado em 20/11/2025 • Prazo Decorrido: 0 dias</p>
+        </div>
+      </div>
+
+      <!-- Financial Metrics Breakdown Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
+        <div class="space-y-1">
+          <span class="text-[9px] font-mono text-zinc-500 uppercase block">Valor Aplicado</span>
+          <div id="modal-applied" class="text-sm font-bold font-mono text-zinc-400">R$ 0,00</div>
+        </div>
+        <div class="space-y-1 border-l border-zinc-800/80 pl-3">
+          <span class="text-[9px] font-mono text-zinc-500 uppercase block">Valor Bruto Total</span>
+          <div id="modal-gross-value" class="text-sm font-bold font-mono text-white">R$ 0,00</div>
+        </div>
+        <div class="space-y-1 border-l border-zinc-800/80 pl-3">
+          <span class="text-[9px] font-mono text-zinc-500 uppercase block">Rendimento Líquido</span>
+          <div id="modal-net-yield" class="text-sm font-bold font-mono text-emerald-400">R$ 0,00</div>
+        </div>
+        <div class="space-y-1 border-l border-zinc-800/80 pl-3">
+          <span class="text-[9px] font-mono text-zinc-500 uppercase block">Total Líquido (Resgate)</span>
+          <div id="modal-net-value" class="text-sm font-bold font-mono text-violet-400">R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- Deduções Detalhadas (IR & IOF) -->
+      <div class="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4 space-y-3">
+        <h4 class="font-semibold text-xs text-zinc-200 flex items-center gap-1.5">
+          <i data-lucide="calculator" class="w-4 h-4 text-red-400"></i>
+          Deduções Prováveis & Impostos
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-mono text-zinc-500 uppercase">Imposto de Renda (IR)</span>
+                <span id="modal-ir-badge" class="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded">Calculando...</span>
+              </div>
+              <p class="text-[9px] text-zinc-500 mt-1">Regressivo: 22.5% (&le;180d), 20% (181-360d), 17.5% (361-720d) e 15% (&gt;720d).</p>
+            </div>
+            <div id="modal-ir-value" class="font-mono text-sm font-bold text-red-400 mt-2">R$ 0,00</div>
+          </div>
+          
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-mono text-zinc-500 uppercase">Imposto S/ Op. Financeiras (IOF)</span>
+                <span id="modal-iof-badge" class="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded">Calculando...</span>
+              </div>
+              <p class="text-[9px] text-zinc-500 mt-1">Regressivo de 96% a 3% nos primeiros 30 dias de aplicação. Isento após o 30º dia.</p>
+            </div>
+            <div id="modal-iof-value" class="font-mono text-sm font-bold text-red-400 mt-2">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulation Date Control Slider (Moved into Asset Detail Modal) -->
+      <div class="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-violet-400"></i>
+            <h2 class="font-semibold text-sm text-zinc-200">Simulação Temporal (Data de Resgate)</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-zinc-400">Data Alvo:</span>
+            <span id="target-date-display" class="font-mono text-xs font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded">2026-07-16</span>
+            <input type="date" id="target-date-picker" class="hidden">
+            <button type="button" id="target-date-picker-trigger" onclick="openCustomDatePicker('target-date-picker')" class="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-300 flex items-center gap-1.5 font-mono transition">
+              <span id="target-date-picker-label">16/07/2026</span>
+              <i data-lucide="calendar" class="w-3 h-3 text-zinc-500"></i>
+            </button>
+          </div>
+        </div>
+        <input type="range" id="target-date-slider" class="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-violet-500" min="0" max="1000" value="0">
+        <div class="flex justify-between text-[10px] text-zinc-500 font-mono">
+          <span>DATA DE HOJE</span>
+          <span>+1 ANO</span>
+          <span>+2 ANOS</span>
+          <span>+3 ANOS</span>
+        </div>
+
+        <!-- Rendimento Mensal Detalhado (Requirement 2) -->
+        <div id="modal-monthly-split-container" class="mt-3 pt-3 border-t border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-900/40">
+            <span class="text-[9px] font-mono text-zinc-500 block uppercase">Média Mensal (Meses Completos)</span>
+            <strong id="modal-monthly-avg-value" class="text-xs font-mono font-bold text-emerald-400">R$ 0,00/mês</strong>
+            <p id="modal-monthly-avg-desc" class="text-[9px] text-zinc-500 mt-1 leading-normal">Média proporcional por mês (~30 dias).</p>
+          </div>
+          <div class="bg-zinc-950 p-3 rounded-xl border border-zinc-900/40">
+            <span class="text-[9px] font-mono text-zinc-500 block uppercase">Fração dos Dias Restantes</span>
+            <strong id="modal-remaining-days-value" class="text-xs font-mono font-bold text-violet-400">R$ 0,00</strong>
+            <p id="modal-remaining-days-desc" class="text-[9px] text-zinc-500 mt-1 leading-normal">Rendimento para os dias restantes.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparador de Poupança -->
+      <div class="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4 space-y-4">
+        <div class="flex justify-between items-center">
+          <h4 class="font-semibold text-xs text-zinc-200 flex items-center gap-1.5">
+            <i data-lucide="piggy-bank" class="w-4 h-4 text-amber-400"></i>
+            Comparador de Rendimento vs. Poupança
+          </h4>
+          <span id="poupanca-rule-badge" class="text-[8px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded-full">Regra Especial</span>
+        </div>
+        
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div class="bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/60">
+              <span class="text-[9px] text-zinc-500 block">LUCRO LÍQUIDO DO ATIVO</span>
+              <strong id="comparison-asset-profit" class="text-sm text-violet-400">R$ 0,00</strong>
+            </div>
+            <div class="bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/60">
+              <span class="text-[9px] text-zinc-500 block">RENDIMENTO NA POUPANÇA</span>
+              <strong id="comparison-savings-profit" class="text-sm text-amber-400">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <!-- Progress bars -->
+          <div class="space-y-2">
+            <div class="space-y-1">
+              <div class="flex justify-between text-[10px]">
+                <span class="text-zinc-400 font-mono">Este Ativo (Líquido)</span>
+                <span id="comparison-asset-percent" class="text-violet-400 font-bold font-mono">100%</span>
+              </div>
+              <div class="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
+                <div id="comparison-asset-bar" class="bg-violet-500 h-full rounded-full transition-all duration-500" style="width: 100%"></div>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-[10px]">
+                <span class="text-zinc-400 font-mono">Poupança Equivalente</span>
+                <span id="comparison-savings-percent" class="text-amber-400 font-bold font-mono">60%</span>
+              </div>
+              <div class="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-900">
+                <div id="comparison-savings-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 60%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-900/80 text-center">
+            <span id="comparison-verdict" class="text-xs font-semibold text-zinc-300">Este ativo rendeu <strong class="text-emerald-400 font-bold">145%</strong> do valor da Poupança!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Area Chart (Snowball Curve) -->
+      <div class="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900 pb-3">
+          <h4 class="font-semibold text-xs text-zinc-200 flex items-center gap-1.5">
+            <i data-lucide="trending-up" class="w-4 h-4 text-violet-400"></i>
+            Curva de Capitalização (Efeito Bola de Neve)
+          </h4>
+          
+          <!-- Modern interactive toggle pills -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" id="toggle-curve-compound" onclick="toggleSnowballCurve('compound')" class="text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95">
+              <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+              Juros Compostos
+            </button>
+            <button type="button" id="toggle-curve-simple" onclick="toggleSnowballCurve('simple')" class="text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95">
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              Juros Simples
+            </button>
+            <button type="button" id="toggle-curve-savings" onclick="toggleSnowballCurve('savings')" class="text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Poupança
+            </button>
+          </div>
+        </div>
+        <div class="h-[180px] w-full">
+          <canvas id="snowball-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Compound metrics panel -->
+      <div class="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4 space-y-4">
+        <h4 class="font-semibold text-xs text-zinc-200 flex items-center gap-1.5">
+          <i data-lucide="zap" class="w-4 h-4 text-violet-400"></i>
+          Velocidade de Geração de Riqueza
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800">
+            <span class="text-[9px] font-mono text-zinc-500 block">Juros sobre Juros Adicional</span>
+            <div id="modal-interest-on-interest" class="font-mono text-sm font-bold text-violet-300">R$ 0,00</div>
+            <p class="text-[9px] text-zinc-500 mt-1 leading-relaxed">Ganho gerado exclusivamente pelos rendimentos se reinvestindo diariamente.</p>
+          </div>
+
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800">
+            <span class="text-[9px] font-mono text-zinc-500 block">Tempo para Dobrar Capital</span>
+            <div id="modal-doubling-time" class="font-mono text-sm font-bold text-amber-400">0 anos</div>
+            <p class="text-[9px] text-zinc-500 mt-1 leading-relaxed">Tempo projetado matematicamente com base na rentabilidade anualizada equivalente.</p>
+          </div>
+
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 sm:col-span-2">
+            <span class="text-[9px] font-mono text-zinc-500 block">Velocidade Atual de Geração</span>
+            <div class="flex justify-between mt-1 text-[10px] font-mono bg-zinc-950 p-2 rounded border border-zinc-800">
+              <div>
+                <span class="text-zinc-500">POR DIA ÚTIL</span>
+                <strong id="modal-speed-daily" class="text-emerald-400 block">+R$ 0,00</strong>
+              </div>
+              <div>
+                <span class="text-zinc-500">POR HORA (24H)</span>
+                <strong id="modal-speed-hourly" class="text-violet-300 block">+R$ 0,00</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 sm:col-span-2">
+            <span class="text-[9px] font-mono text-zinc-500 block">Taxas Equivalentes Compostos</span>
+            <div class="grid grid-cols-3 gap-2 mt-1 text-[10px] text-center font-mono">
+              <div class="bg-zinc-950 p-1.5 rounded border border-zinc-800">
+                <span class="text-[8px] text-zinc-500 block">DIA</span>
+                <strong id="modal-rate-day">0.0000%</strong>
+              </div>
+              <div class="bg-zinc-950 p-1.5 rounded border border-zinc-800">
+                <span class="text-[8px] text-zinc-500 block">MÊS</span>
+                <strong id="modal-rate-month">0.00%</strong>
+              </div>
+              <div class="bg-zinc-950 p-1.5 rounded border border-zinc-800">
+                <span class="text-[8px] text-zinc-500 block">ANO (A.A.)</span>
+                <strong id="modal-rate-year">0.00%</strong>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ANBIMA details banner -->
+      <div class="bg-zinc-900/50 border border-zinc-800 p-3.5 rounded-2xl flex items-start gap-2.5 text-[10px]">
+        <i data-lucide="book-open" class="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0"></i>
+        <div class="space-y-1">
+          <strong class="text-zinc-300 uppercase block tracking-wider font-sans font-semibold">Rigor ANBIMA de Capitalização</strong>
+          <p class="text-zinc-500 leading-relaxed">
+            Renda fixa calculada com base em 252 dias úteis anuais. O CDI diário é arredondado em 8 casas decimais, com o fator de acumulação final truncado ou arredondado para 16 casas decimais, espelhando os lançamentos da CBLC e custódia bancária.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button id="modal-delete-btn" class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 font-semibold px-3 py-2 hover:bg-red-500/10 rounded-xl transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> EXCLUIR ATIVO
+        </button>
+        <div class="flex gap-2">
+          <button id="modal-edit-btn" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 font-semibold text-xs text-zinc-200 rounded-xl transition">
+            EDITAR ATIVO
+          </button>
+          <button onclick="closeModal('detail-modal')" class="px-4 py-2 bg-violet-600 hover:bg-violet-500 font-semibold text-xs text-white rounded-xl transition">
+            FECHAR
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Asset Modal -->
+  <div id="add-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5 relative">
+      <button onclick="closeModal('add-modal')" class="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div>
+        <h3 id="add-modal-title" class="text-base font-bold text-white">Cadastrar Novo Investimento</h3>
+        <p class="text-xs text-zinc-500">Insira as informações de custódia da sua aplicação</p>
+      </div>
+
+      <form id="asset-form" class="space-y-4 text-xs">
+        <input type="hidden" id="form-asset-id">
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Nome do Ativo / Emissor</label>
+            <input type="text" id="form-name" required placeholder="CDB Banco XYZ" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 focus:outline-none focus:border-violet-500 font-sans">
+          </div>
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Categoria</label>
+            <div class="relative">
+              <select id="form-category" class="hidden">
+                <option value="CDB">CDB</option>
+                <option value="TESOURO">Tesouro Direto</option>
+                <option value="LCI">LCI</option>
+                <option value="LCA">LCA</option>
+                <option value="FII">Fundo Imobiliário (FII)</option>
+                <option value="ACOES">Ações</option>
+              </select>
+              <button type="button" id="form-category-trigger" onclick="openCustomSelect('form-category')" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 flex items-center justify-between hover:border-zinc-700 transition text-left">
+                <span id="form-category-label">CDB</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-zinc-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Valor Aplicado (R$)</label>
+            <input type="number" id="form-applied" required step="0.01" min="0.01" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 focus:outline-none focus:border-violet-500 font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Data de Aplicação</label>
+            <div class="relative">
+              <input type="date" id="form-date" required class="hidden">
+              <button type="button" id="form-date-trigger" onclick="openCustomDatePicker('form-date')" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 hover:border-zinc-700 transition flex items-center justify-between font-mono text-left">
+                <span id="form-date-label">Selecionar data</span>
+                <i data-lucide="calendar" class="w-4 h-4 text-zinc-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rendimento section for Fixed Income -->
+        <div id="fixed-income-fields" class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Indexador de Rendimento</label>
+            <div class="relative">
+              <select id="form-rendimento-type" class="hidden">
+                <option value="CDI">Pós-fixado (% do CDI)</option>
+                <option value="PRE">Pré-fixado (% a.a.)</option>
+                <option value="IPCA">IPCA + Cupom (% a.a.)</option>
+                <option value="SELIC">Selic + Ágio (% a.a.)</option>
+              </select>
+              <button type="button" id="form-rendimento-type-trigger" onclick="openCustomSelect('form-rendimento-type')" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 flex items-center justify-between hover:border-zinc-700 transition text-left">
+                <span id="form-rendimento-type-label">Pós-fixado (% do CDI)</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-zinc-500"></i>
+              </button>
+            </div>
+          </div>
+          <!-- Ágio Field (only shown if Category is TESOURO) -->
+          <div id="agio-field-wrapper" class="space-y-1 hidden">
+            <label class="text-zinc-400 block font-medium">Ágio (%)</label>
+            <input type="number" id="form-agio" step="0.0001" placeholder="0,0000" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 focus:outline-none focus:border-violet-500 font-mono" value="0">
+          </div>
+          <div class="space-y-1">
+            <label id="taxa-label" class="text-zinc-400 block font-medium">Taxa de Rendim. (%)</label>
+            <input type="number" id="form-tax" step="0.01" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 focus:outline-none focus:border-violet-500 font-mono" value="110">
+          </div>
+        </div>
+
+        <!-- Rendimento section for Variable Income -->
+        <div id="variable-income-fields" class="grid grid-cols-3 gap-3 hidden">
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Qtd. de Cotas/Ações</label>
+            <input type="number" id="form-qty" step="1" min="1" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500 font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Preço Médio (R$)</label>
+            <input type="number" id="form-price-avg" step="0.01" min="0.01" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500 font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium flex items-center justify-between">
+              <span>Preço Atual (R$)</span>
+              <button type="button" onclick="fetchCurrentMarketPrice(event)" class="text-[9px] text-violet-400 hover:text-violet-300 transition flex items-center gap-0.5 font-sans">
+                <i data-lucide="refresh-cw" class="w-2.5 h-2.5"></i> Buscar
+              </button>
+            </label>
+            <input type="number" id="form-price-current" step="0.01" min="0.01" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500 font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Liquidez</label>
+            <div class="relative">
+              <select id="form-liquidez" class="hidden">
+                <option value="DIARIA">Diária</option>
+                <option value="VENCIMENTO">No Vencimento</option>
+                <option value="OUTRA">Outra</option>
+              </select>
+              <button type="button" id="form-liquidez-trigger" onclick="openCustomSelect('form-liquidez')" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 flex items-center justify-between hover:border-zinc-700 transition text-left">
+                <span id="form-liquidez-label">Diária</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-zinc-500"></i>
+              </button>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <label class="text-zinc-400 block font-medium">Data de Vencimento</label>
+            <div class="relative">
+              <input type="date" id="form-date-vencimento" class="hidden">
+              <button type="button" id="form-date-vencimento-trigger" onclick="openCustomDatePicker('form-date-vencimento')" class="w-full bg-zinc-900/60 border border-zinc-800 text-zinc-200 rounded-xl px-3.5 py-2 hover:border-zinc-700 transition flex items-center justify-between font-mono text-left">
+                <span id="form-date-vencimento-label">Sem vencimento</span>
+                <i data-lucide="calendar" class="w-4 h-4 text-zinc-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="form-resgatar" class="w-4 h-4 text-violet-600 bg-zinc-900 border-zinc-800 rounded focus:ring-violet-500">
+          <label for="form-resgatar" class="text-zinc-400 font-medium cursor-pointer select-none">Permitir resgate antecipado</label>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-zinc-850">
+          <button type="button" onclick="closeModal('add-modal')" class="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 rounded-xl font-semibold transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-semibold shadow-lg shadow-violet-950/20 transition">
+            Salvar Ativo
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-confirm-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-sm p-6 space-y-6 text-center">
+      <div class="mx-auto w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20">
+        <i data-lucide="alert-triangle" class="w-8 h-8 text-red-400"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-white">Confirmar Exclusão</h3>
+        <p class="text-xs text-zinc-500 mt-2">Tem certeza que deseja excluir permanentemente este investimento? Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeModal('delete-confirm-modal')" class="flex-1 px-4 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 rounded-xl font-semibold transition">
+          Cancelar
+        </button>
+        <button onclick="window.deleteAsset(state.assetToDeleteId)" class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold shadow-lg shadow-red-950/20 transition">
+          Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="notification-toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl border bg-zinc-950 shadow-2xl transition-all duration-300 translate-y-20 opacity-0 flex items-center gap-3">
+    <div id="notification-icon-container" class="p-1.5 rounded-lg">
+      <i id="notification-icon" data-lucide="info" class="w-4 h-4"></i>
+    </div>
+    <span id="notification-message" class="text-xs font-semibold text-white"></span>
+  </div>
+
+  <!-- Standalone JS Application logic -->
+  <script>
+    // --- SERVICE WORKER REGISTRATION ---
+    let deferredPrompt;
+    const installBtn = document.getElementById('pwa-install-btn');
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registrado!', reg))
+          .catch(err => console.log('Erro ao registrar Service Worker', err));
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) installBtn.classList.remove('hidden');
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('Usuário aceitou a instalação');
+          installBtn.classList.add('hidden');
+        }
+        deferredPrompt = null;
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      if (installBtn) installBtn.classList.add('hidden');
+      deferredPrompt = null;
+    });
+
+    // --- HOLIDAYS & CONSTANTS ---
+    const IOF_TABLE = {
+      1: 96, 2: 93, 3: 90, 4: 86, 5: 83, 6: 80, 7: 76, 8: 73, 9: 70, 10: 66,
+      11: 63, 12: 60, 13: 56, 14: 53, 15: 50, 16: 46, 17: 43, 18: 40, 19: 36,
+      20: 33, 21: 30, 22: 26, 23: 23, 24: 20, 25: 16, 26: 13, 27: 10, 28: 6,
+      29: 3, 30: 0
+    };
+
+    const BRAZIL_HOLIDAYS = [
+      '01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'
+    ];
+
+    const DEFAULT_ASSETS = [
+      { id: '1', nome: 'CDB Banco Inter 110% CDI', categoria: 'CDB', valorAplicado: 12000, dataAplicacao: '2025-11-10', taxaRendimento: 110, tipoRendimento: 'CDI', liquidez: 'DIARIA', dataVencimento: '2028-11-10', resgatarAntes: true },
+      { id: '2', nome: 'Tesouro Selic 2029', categoria: 'TESOURO', valorAplicado: 25000, dataAplicacao: '2024-06-15', taxaRendimento: 100, tipoRendimento: 'SELIC', agio: 0.1500, liquidez: 'DIARIA', dataVencimento: '2029-03-01', resgatarAntes: true },
+      { id: '3', nome: 'LCI Sicredi Liquidez 90 dias', categoria: 'LCI', valorAplicado: 15000, dataAplicacao: '2026-03-20', taxaRendimento: 90, tipoRendimento: 'CDI', liquidez: 'VENCIMENTO', dataVencimento: '2026-06-18', resgatarAntes: false },
+      { id: '4', nome: 'LCA Banco do Brasil', categoria: 'LCA', valorAplicado: 18000, dataAplicacao: '2025-01-15', taxaRendimento: 92, tipoRendimento: 'CDI', liquidez: 'OUTRA', dataVencimento: '2027-01-15', resgatarAntes: false },
+      { id: '5', nome: 'FII HGLG11 (Logística)', categoria: 'FII', valorAplicado: 10000, dataAplicacao: '2025-05-10', taxaRendimento: 0, tipoRendimento: 'VARIAVEL', quantidade: 60, precoMedio: 166.66, precoAtual: 178.50, liquidez: 'DIARIA', resgatarAntes: true },
+      { id: '6', nome: 'Ações PETR4 (Petrobras)', categoria: 'ACOES', valorAplicado: 8000, dataAplicacao: '2026-02-10', taxaRendimento: 0, tipoRendimento: 'VARIAVEL', quantidade: 220, precoMedio: 36.36, precoAtual: 41.20, liquidez: 'DIARIA', resgatarAntes: true }
+    ];
+
+    // --- APPLICATION STATE ---
+    let state = {
+      assets: JSON.parse(localStorage.getItem('veloce_portfolio_assets')) || DEFAULT_ASSETS,
+      hideValues: localStorage.getItem('veloce_hide_values') === 'true',
+      cdiRateAnnual: parseFloat(localStorage.getItem('veloce_cdi_rate')) || 0.1175,
+      cdiMode: localStorage.getItem('veloce_cdi_mode') || 'auto',
+      selicRateAnnual: parseFloat(localStorage.getItem('veloce_selic_rate')) || 0.1175,
+      selicMode: localStorage.getItem('veloce_selic_mode') || 'auto',
+      historicalCdiRates: JSON.parse(localStorage.getItem('veloce_historical_cdi_rates')) || {},
+      simulationDate: getLocalYYYYMMDD(new Date()),
+      dollarQuote: null,
+      searchQuery: '',
+      selectedCategory: 'TODOS',
+      autoUpdatePrices: localStorage.getItem('veloce_auto_update_prices') === 'true',
+      priceUpdateInterval: parseInt(localStorage.getItem('veloce_price_update_interval'), 10) || 6,
+      priceDirections: JSON.parse(localStorage.getItem('veloce_price_directions')) || {},
+      flashAssets: {},
+      selectedAssetId: null,
+      chartFilters: {
+        compound: true,
+        simple: true,
+        savings: true
+      }
+    };
+
+    // --- GLOBALS FOR CHARTS ---
+    let allocationChartInstance = null;
+    let snowballChartInstance = null;
+    let tickerInterval = null;
+    let autoPriceInterval = null;
+
+    // --- CUSTOM SELECTION AND DATEPICKER LOGIC ---
+    let activeDatePickerField = null; 
+    let datePickerSelectedMonth = new Date().getMonth(); 
+    let datePickerSelectedYear = new Date().getFullYear();
+
+    const MONTHS_PT = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    let activeDatePickerSelectorType = null; // 'month' or 'year'
+
+    window.openDatePickerSelection = function(type) {
+      activeDatePickerSelectorType = type;
+      const titleEl = document.getElementById('datepicker-selector-title');
+      const listEl = document.getElementById('datepicker-selector-list');
+      if (!titleEl || !listEl) return;
+
+      listEl.innerHTML = '';
+
+      if (type === 'month') {
+        titleEl.textContent = 'Selecionar Mês';
+        listEl.className = 'grid grid-cols-3 gap-2';
+        
+        MONTHS_PT.forEach((m, idx) => {
+          const isSelected = idx === datePickerSelectedMonth;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.onclick = () => selectDatePickerSelectorValue('month', idx);
+          
+          btn.className = `py-2.5 px-1.5 rounded-xl border text-center transition text-xs font-medium ${
+            isSelected 
+              ? 'bg-violet-600/20 border-violet-500 text-violet-200 font-bold shadow-md shadow-violet-950/20' 
+              : 'bg-zinc-900/40 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-800'
+          }`;
+          
+          btn.textContent = m;
+          listEl.appendChild(btn);
+        });
+      } else if (type === 'year') {
+        titleEl.textContent = 'Selecionar Ano';
+        listEl.className = 'grid grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-1';
+        
+        for (let y = 2015; y <= 2045; y++) {
+          const isSelected = y === datePickerSelectedYear;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.onclick = () => selectDatePickerSelectorValue('year', y);
+          
+          btn.className = `py-2 px-1 rounded-lg border text-center transition font-mono text-xs ${
+            isSelected 
+              ? 'bg-violet-600/20 border-violet-500 text-violet-200 font-bold shadow-md shadow-violet-950/20' 
+              : 'bg-zinc-900/40 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-800'
+          }`;
+          
+          btn.textContent = y;
+          listEl.appendChild(btn);
+        }
+      }
+
+      const modal = document.getElementById('datepicker-selector-modal');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.scale-95')?.classList.remove('scale-95');
+      }, 50);
+
+      lucide.createIcons();
+    };
+
+    window.closeDatePickerSelectorModal = function() {
+      const modal = document.getElementById('datepicker-selector-modal');
+      if (!modal) return;
+      modal.classList.add('opacity-0');
+      modal.querySelector('div > div')?.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+      activeDatePickerSelectorType = null;
+    };
+
+    window.selectDatePickerSelectorValue = function(type, value) {
+      if (type === 'month') {
+        datePickerSelectedMonth = value;
+      } else if (type === 'year') {
+        datePickerSelectedYear = value;
+      }
+      renderDatePicker();
+      closeDatePickerSelectorModal();
+    };
+
+    window.openCustomDatePicker = function(fieldId) {
+      activeDatePickerField = fieldId;
+      const currentVal = document.getElementById(fieldId).value;
+      
+      let initialDate = new Date();
+      if (currentVal) {
+        const parts = currentVal.split('-');
+        if (parts.length === 3) {
+          initialDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+      }
+      
+      datePickerSelectedMonth = initialDate.getMonth();
+      datePickerSelectedYear = initialDate.getFullYear();
+      
+      // Show/hide Clear button based on if field is required
+      const clearBtn = document.getElementById('datepicker-clear-btn');
+      if (clearBtn) {
+        const field = document.getElementById(fieldId);
+        if (field && field.hasAttribute('required')) {
+          clearBtn.classList.add('hidden');
+        } else {
+          clearBtn.classList.remove('hidden');
+        }
+      }
+
+      renderDatePicker();
+      
+      // Open the modal
+      const modal = document.getElementById('custom-datepicker-modal');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.scale-95')?.classList.remove('scale-95');
+      }, 50);
+    };
+
+    window.closeDatePickerModal = function() {
+      const modal = document.getElementById('custom-datepicker-modal');
+      if (!modal) return;
+      modal.classList.add('opacity-0');
+      modal.querySelector('div > div')?.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+      activeDatePickerField = null;
+    };
+
+    window.selectDatePickerDate = function(day) {
+      if (!activeDatePickerField) return;
+      
+      const m = String(datePickerSelectedMonth + 1).padStart(2, '0');
+      const d = String(day).padStart(2, '0');
+      const y = datePickerSelectedYear;
+      const dateStr = `${y}-${m}-${d}`;
+      
+      const targetInput = document.getElementById(activeDatePickerField);
+      if (targetInput) {
+        targetInput.value = dateStr;
+        targetInput.dispatchEvent(new Event('change'));
+      }
+      
+      // Update label
+      const triggerLabel = document.getElementById(`${activeDatePickerField}-label`);
+      if (triggerLabel) {
+        triggerLabel.textContent = formatToBrazilianDate(dateStr);
+      }
+      
+      closeDatePickerModal();
+    };
+
+    window.clearDatePickerDate = function() {
+      if (!activeDatePickerField) return;
+      
+      const targetInput = document.getElementById(activeDatePickerField);
+      if (targetInput) {
+        targetInput.value = '';
+        targetInput.dispatchEvent(new Event('change'));
+      }
+      
+      const triggerLabel = document.getElementById(`${activeDatePickerField}-label`);
+      if (triggerLabel) {
+        triggerLabel.textContent = activeDatePickerField === 'form-date-vencimento' ? 'Sem vencimento' : 'Selecionar data';
+      }
+      
+      closeDatePickerModal();
+    };
+
+    window.renderDatePicker = function() {
+      // Update buttons labels
+      document.getElementById('datepicker-month-label').textContent = MONTHS_PT[datePickerSelectedMonth];
+      document.getElementById('datepicker-year-label').textContent = datePickerSelectedYear;
+      
+      const grid = document.getElementById('datepicker-days-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      
+      const firstDayIndex = new Date(datePickerSelectedYear, datePickerSelectedMonth, 1).getDay();
+      const totalDays = new Date(datePickerSelectedYear, datePickerSelectedMonth + 1, 0).getDate();
+      const prevTotalDays = new Date(datePickerSelectedYear, datePickerSelectedMonth, 0).getDate();
+      
+      let selectedDayNum = null;
+      const currentVal = document.getElementById(activeDatePickerField).value;
+      if (currentVal) {
+        const parts = currentVal.split('-');
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          if (y === datePickerSelectedYear && m === datePickerSelectedMonth) {
+            selectedDayNum = d;
+          }
+        }
+      }
+      
+      const today = new Date();
+      const isCurrentMonthYear = today.getFullYear() === datePickerSelectedYear && today.getMonth() === datePickerSelectedMonth;
+      const todayDayNum = today.getDate();
+
+      // Render prev month padding days
+      for (let i = firstDayIndex - 1; i >= 0; i--) {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'text-center py-2 text-zinc-700 font-mono text-xs select-none pointer-events-none opacity-40';
+        dayDiv.textContent = prevTotalDays - i;
+        grid.appendChild(dayDiv);
+      }
+      
+      // Render active month days
+      for (let d = 1; d <= totalDays; d++) {
+        const dayButton = document.createElement('button');
+        dayButton.type = 'button';
+        dayButton.onclick = () => selectDatePickerDate(d);
+        
+        let dayClass = 'text-center py-2 rounded-lg font-mono text-xs hover:bg-zinc-800 transition text-zinc-300';
+        
+        if (d === selectedDayNum) {
+          dayClass = 'text-center py-2 rounded-lg font-mono text-xs bg-violet-600 hover:bg-violet-500 font-bold text-white transition shadow-md shadow-violet-900/30';
+        } else if (isCurrentMonthYear && d === todayDayNum) {
+          dayClass = 'text-center py-2 rounded-lg font-mono text-xs border border-violet-500/50 hover:bg-zinc-800 text-violet-300 transition';
+        }
+        
+        dayButton.className = dayClass;
+        dayButton.textContent = d;
+        grid.appendChild(dayButton);
+      }
+      
+      const totalCells = grid.children.length;
+      const remainingCells = 42 - totalCells;
+      for (let d = 1; d <= remainingCells; d++) {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'text-center py-2 text-zinc-700 font-mono text-xs select-none pointer-events-none opacity-40';
+        dayDiv.textContent = d;
+        grid.appendChild(dayDiv);
+      }
+    };
+
+    let activeSelectField = null; 
+
+    window.openCustomSelect = function(fieldId) {
+      activeSelectField = fieldId;
+      const selectEl = document.getElementById(fieldId);
+      if (!selectEl) return;
+      
+      const titleEl = document.getElementById('custom-select-title');
+      const listEl = document.getElementById('custom-select-list');
+      if (!titleEl || !listEl) return;
+
+      let titleText = 'Selecionar';
+      if (fieldId === 'form-category') titleText = 'Selecionar Categoria';
+      else if (fieldId === 'form-rendimento-type') titleText = 'Indexador de Rendimento';
+      else if (fieldId === 'form-liquidez') titleText = 'Selecionar Liquidez';
+      
+      titleEl.textContent = titleText;
+      listEl.innerHTML = '';
+
+      const options = Array.from(selectEl.options);
+      const currentVal = selectEl.value;
+
+      options.forEach(opt => {
+        const itemButton = document.createElement('button');
+        itemButton.type = 'button';
+        itemButton.onclick = () => selectCustomOption(opt.value);
+        
+        const isSelected = opt.value === currentVal;
+        
+        itemButton.className = `w-full text-left p-3 rounded-xl border flex items-center justify-between transition group font-sans text-xs ${
+          isSelected 
+            ? 'bg-violet-600/15 border-violet-500/45 text-violet-200 font-semibold' 
+            : 'bg-zinc-900/40 border-zinc-900/20 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-850'
+        }`;
+
+        let subtitle = '';
+        if (opt.value === 'CDB') subtitle = 'Certificado de Depósito Bancário';
+        else if (opt.value === 'TESOURO') subtitle = 'Títulos do Governo Federal';
+        else if (opt.value === 'LCI') subtitle = 'Letras de Crédito Imobiliário';
+        else if (opt.value === 'LCA') subtitle = 'Letras de Crédito do Agronegócio';
+        else if (opt.value === 'FII') subtitle = 'Fundos de Investimento Imobiliário';
+        else if (opt.value === 'ACOES') subtitle = 'Renda Variável (Bolsa de Valores)';
+        else if (opt.value === 'CDI') subtitle = 'Rentabilidade atrelada à taxa diária CDI';
+        else if (opt.value === 'PRE') subtitle = 'Rentabilidade fixa definida na contratação';
+        else if (opt.value === 'IPCA') subtitle = 'Proteção contra inflação + prêmio fixo';
+        else if (opt.value === 'SELIC') subtitle = 'Taxa Selic Over + ágio contratado';
+        else if (opt.value === 'DIARIA') subtitle = 'Pode resgatar a qualquer momento';
+        else if (opt.value === 'VENCIMENTO') subtitle = 'Apenas na data final pactuada';
+        else if (opt.value === 'OUTRA') subtitle = 'Outras condições de liquidez';
+
+        itemButton.innerHTML = `
+          <div class="space-y-0.5">
+            <span class="block text-sm text-zinc-100 group-hover:text-white transition font-medium">${opt.textContent}</span>
+            ${subtitle ? `<span class="block text-[10px] text-zinc-500 font-normal leading-tight">${subtitle}</span>` : ''}
+          </div>
+          ${isSelected ? `<i data-lucide="check" class="w-4 h-4 text-violet-400"></i>` : `<i data-lucide="chevron-right" class="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition"></i>`}
+        `;
+
+        listEl.appendChild(itemButton);
+      });
+
+      const modal = document.getElementById('custom-select-modal');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.scale-95')?.classList.remove('scale-95');
+      }, 50);
+
+      lucide.createIcons();
+    };
+
+    window.closeCustomSelectModal = function() {
+      const modal = document.getElementById('custom-select-modal');
+      if (!modal) return;
+      modal.classList.add('opacity-0');
+      modal.querySelector('div > div')?.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+      activeSelectField = null;
+    };
+
+    window.selectCustomOption = function(value) {
+      if (!activeSelectField) return;
+      
+      const selectEl = document.getElementById(activeSelectField);
+      if (selectEl) {
+        selectEl.value = value;
+        selectEl.dispatchEvent(new Event('change'));
+      }
+      
+      // Update label
+      const triggerLabel = document.getElementById(`${activeSelectField}-label`);
+      if (triggerLabel) {
+        const option = Array.from(selectEl.options).find(o => o.value === value);
+        triggerLabel.textContent = option ? option.textContent : value;
+      }
+      
+      closeCustomSelectModal();
+    };
+
+    window.syncCustomInputsAndLabels = function() {
+      // 1. Sync Categories
+      const catVal = document.getElementById('form-category')?.value;
+      const catLabel = document.getElementById('form-category-label');
+      if (catLabel && catVal) {
+        const option = document.querySelector(`#form-category option[value="${catVal}"]`);
+        catLabel.textContent = option ? option.textContent : catVal;
+      }
+
+      // 2. Sync Rendimento Type
+      const rendVal = document.getElementById('form-rendimento-type')?.value;
+      const rendLabel = document.getElementById('form-rendimento-type-label');
+      if (rendLabel && rendVal) {
+        const option = document.querySelector(`#form-rendimento-type option[value="${rendVal}"]`);
+        rendLabel.textContent = option ? option.textContent : rendVal;
+      }
+
+      // 3. Sync Liquidez
+      const liqVal = document.getElementById('form-liquidez')?.value;
+      const liqLabel = document.getElementById('form-liquidez-label');
+      if (liqLabel && liqVal) {
+        const option = document.querySelector(`#form-liquidez option[value="${liqVal}"]`);
+        liqLabel.textContent = option ? option.textContent : liqVal;
+      }
+
+      // 4. Sync Date
+      const dateVal = document.getElementById('form-date')?.value;
+      const dateLabel = document.getElementById('form-date-label');
+      if (dateLabel) {
+        dateLabel.textContent = dateVal ? formatToBrazilianDate(dateVal) : 'Selecionar data';
+      }
+
+      // 5. Sync Date Vencimento
+      const dateVencVal = document.getElementById('form-date-vencimento')?.value;
+      const dateVencLabel = document.getElementById('form-date-vencimento-label');
+      if (dateVencLabel) {
+        dateVencLabel.textContent = dateVencVal ? formatToBrazilianDate(dateVencVal) : 'Sem vencimento';
+      }
+
+      // 6. Sync simulation date target display label
+      const targetPicker = document.getElementById('target-date-picker');
+      const targetLabel = document.getElementById('target-date-picker-label');
+      if (targetPicker && targetLabel) {
+        targetLabel.textContent = targetPicker.value ? formatToBrazilianDate(targetPicker.value) : formatToBrazilianDate(state.simulationDate);
+      }
+    };
+
+    window.toggleSnowballCurve = function(type) {
+      state.chartFilters[type] = !state.chartFilters[type];
+      
+      updateSnowballToggleButtonsStyles();
+      
+      if (state.selectedAssetId) {
+        const asset = state.assets.find(a => a.id === state.selectedAssetId);
+        if (asset) {
+          renderSnowballChart(asset);
+        }
+      }
+    };
+
+    window.updateSnowballToggleButtonsStyles = function() {
+      const btnCompound = document.getElementById('toggle-curve-compound');
+      const btnSimple = document.getElementById('toggle-curve-simple');
+      const btnSavings = document.getElementById('toggle-curve-savings');
+
+      if (btnCompound) {
+        if (state.chartFilters.compound) {
+          btnCompound.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-violet-500/15 border-violet-500/35 text-violet-300";
+        } else {
+          btnCompound.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-zinc-900/40 border-zinc-850 text-zinc-600";
+        }
+      }
+
+      if (btnSimple) {
+        if (state.chartFilters.simple) {
+          btnSimple.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-zinc-500/15 border-zinc-500/35 text-zinc-300";
+        } else {
+          btnSimple.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-zinc-900/40 border-zinc-850 text-zinc-600";
+        }
+      }
+
+      if (btnSavings) {
+        if (state.chartFilters.savings) {
+          btnSavings.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-amber-500/15 border-amber-500/35 text-amber-300";
+        } else {
+          btnSavings.className = "text-[10px] font-mono px-2.5 py-1 rounded-lg flex items-center gap-1.5 border transition duration-200 hover:scale-105 active:scale-95 bg-zinc-900/40 border-zinc-850 text-zinc-600";
+        }
+      }
+    };
+
+    // --- HELPER MATH & DATES FUNCTIONS ---
+    function getLocalYYYYMMDD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatToBrazilianDate(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    function isHoliday(date) {
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return BRAZIL_HOLIDAYS.includes(`${month}-${day}`);
+    }
+
+    function parseAsLocalMidnight(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getDaysBetween(startStr, endStr) {
+      const start = parseAsLocalMidnight(startStr);
+      const end = parseAsLocalMidnight(endStr);
+      const diff = end.getTime() - start.getTime();
+      return diff <= 0 ? 0 : Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
+
+    function getWorkingDaysBetween(startStr, endStr) {
+      const start = parseAsLocalMidnight(startStr);
+      const end = parseAsLocalMidnight(endStr);
+      if (start >= end) return 0;
+      let workingDays = 0;
+      const current = new Date(start);
+      while (current < end) {
+        current.setDate(current.getDate() + 1);
+        const dayOfWeek = current.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isHoliday(current)) {
+          workingDays++;
+        }
+      }
+      return workingDays;
+    }
+
+    function getIRPercentage(days) {
+      if (days <= 180) return 22.5;
+      if (days <= 360) return 20.0;
+      if (days <= 720) return 17.5;
+      return 15.0;
+    }
+
+    function isTaxExempt(category) {
+      return ['LCI', 'LCA', 'FII', 'ACOES'].includes(category);
+    }
+
+    function formatCurrency(val) {
+      if (state.hideValues) return 'R$ •••••,••';
+      return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // --- RIGOROUS ANBIMA VALUATION ENGINE ---
+    function calculateAssetValuation(asset, cdiRateAnnual, endDateStr) {
+      const days = getDaysBetween(asset.dataAplicacao, endDateStr);
+      const workingDays = getWorkingDaysBetween(asset.dataAplicacao, endDateStr);
+      
+      let grossValue = asset.valorAplicado;
+      let yieldAmount = 0;
+      let simpleYieldAmount = 0;
+      let yieldFactor = 0;
+      let simpleYieldFactor = 0;
+
+      if (asset.categoria === 'ACOES' || asset.categoria === 'FII') {
+        const qty = asset.quantidade || 0;
+        const currentPrice = asset.precoAtual || asset.precoMedio || 0;
+        const appliedVal = qty * (asset.precoMedio || 0);
+        const paperVal = qty * currentPrice;
+        
+        const divYieldAnnual = asset.categoria === 'FII' ? 0.085 : 0.055;
+        const dailyDivYield = Math.pow(1 + divYieldAnnual, 1 / 365) - 1;
+        
+        const compoundedFactor = Math.pow(1 + dailyDivYield, days);
+        const simulatedDividends = appliedVal * (compoundedFactor - 1);
+        const simpleDividends = appliedVal * (dailyDivYield * days);
+        
+        grossValue = paperVal + simulatedDividends;
+        yieldAmount = grossValue - asset.valorAplicado;
+        if (yieldAmount < 0) yieldAmount = 0;
+
+        const simpleGrossValue = paperVal + simpleDividends;
+        simpleYieldAmount = simpleGrossValue - asset.valorAplicado;
+        if (simpleYieldAmount < 0) simpleYieldAmount = 0;
+
+        yieldFactor = compoundedFactor - 1;
+        simpleYieldFactor = dailyDivYield * days;
+      } else {
+        const isSelicAsset = asset.tipoRendimento === 'SELIC' || asset.nome.toLowerCase().includes('selic');
+        if (isSelicAsset) {
+          let spreadVal = 0;
+          if (asset.agio !== undefined && asset.agio !== null && asset.agio !== '') {
+            spreadVal = parseFloat(asset.agio);
+          } else {
+            spreadVal = asset.taxaRendimento >= 10 ? 0 : asset.taxaRendimento;
+          }
+          const spread = spreadVal / 100;
+          const pctSelic = asset.taxaRendimento >= 10 ? asset.taxaRendimento / 100 : 1;
+          const annualRate = (state.selicRateAnnual * pctSelic) + spread;
+          const dailyRateBase = Math.pow(1 + annualRate, 1 / 252) - 1;
+          const dailyRatePctRounded = Math.round(dailyRateBase * 100 * 1e8) / 1e8;
+          const dailyFactor = Math.round((1 + (dailyRatePctRounded / 100)) * 1e16) / 1e16;
+          
+          yieldFactor = Math.pow(dailyFactor, workingDays) - 1;
+          simpleYieldFactor = (dailyRatePctRounded / 100) * workingDays;
+        } else if (asset.tipoRendimento === 'CDI') {
+          const percentageOfCDI = asset.taxaRendimento / 100;
+          let compoundedFactor = 1;
+          let sumOfDailyRates = 0;
+          
+          const start = parseAsLocalMidnight(asset.dataAplicacao);
+          const end = parseAsLocalMidnight(endDateStr);
+          const current = new Date(start);
+          
+          while (current < end) {
+            current.setDate(current.getDate() + 1);
+            const dayOfWeek = current.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isHoliday(current)) {
+              const dateStr = getLocalYYYYMMDD(current);
+              const baseRate = (state.historicalCdiRates && state.historicalCdiRates[dateStr] !== undefined)
+                ? state.historicalCdiRates[dateStr]
+                : (Math.pow(1 + cdiRateAnnual, 1 / 252) - 1);
+              
+              // ANBIMA precision rounding
+              const dailyCdiPctRounded = Math.round(baseRate * 100 * 1e8) / 1e8;
+              const dailyAssetRate = (dailyCdiPctRounded / 100) * percentageOfCDI;
+              const dailyFactor = Math.round((1 + dailyAssetRate) * 1e16) / 1e16;
+              
+              compoundedFactor *= dailyFactor;
+              sumOfDailyRates += dailyAssetRate;
+            }
+          }
+          yieldFactor = compoundedFactor - 1;
+          simpleYieldFactor = sumOfDailyRates;
+        } else if (asset.tipoRendimento === 'PRE') {
+          const annualPreRate = asset.taxaRendimento / 100;
+          const dailyPreRateBase = Math.pow(1 + annualPreRate, 1 / 252) - 1;
+          const dailyPreRatePctRounded = Math.round(dailyPreRateBase * 100 * 1e8) / 1e8;
+          const dailyPreFactor = Math.round((1 + (dailyPreRatePctRounded / 100)) * 1e16) / 1e16;
+          
+          yieldFactor = Math.pow(dailyPreFactor, workingDays) - 1;
+          simpleYieldFactor = (dailyPreRatePctRounded / 100) * workingDays;
+        } else { // IPCA
+          const totalAnnual = (1 + 0.045) * (1 + (asset.taxaRendimento / 100)) - 1;
+          const dailyIpcaRateBase = Math.pow(1 + totalAnnual, 1 / 252) - 1;
+          const dailyIpcaRatePctRounded = Math.round(dailyIpcaRateBase * 100 * 1e8) / 1e8;
+          const dailyIpcaFactor = Math.round((1 + (dailyIpcaRatePctRounded / 100)) * 1e16) / 1e16;
+          
+          yieldFactor = Math.pow(dailyIpcaFactor, workingDays) - 1;
+          simpleYieldFactor = (dailyIpcaRatePctRounded / 100) * workingDays;
+        }
+        grossValue = asset.valorAplicado * (1 + yieldFactor);
+        yieldAmount = grossValue - asset.valorAplicado;
+        simpleYieldAmount = asset.valorAplicado * simpleYieldFactor;
+      }
+
+      // Deduct IR/IOF
+      let iofAmount = 0;
+      let iofPercentage = 0;
+      let irAmount = 0;
+      let irPercentage = 0;
+
+      if (!isTaxExempt(asset.categoria)) {
+        if (days < 30) {
+          iofPercentage = IOF_TABLE[days] || 0;
+          iofAmount = Math.floor(yieldAmount * (iofPercentage / 100) * 100) / 100;
+        }
+        const yieldSubjectToIR = Math.max(0, yieldAmount - iofAmount);
+        irPercentage = getIRPercentage(days);
+        irAmount = Math.floor(yieldSubjectToIR * (irPercentage / 100) * 100) / 100;
+      }
+
+      const netValue = grossValue - iofAmount - irAmount;
+
+      // Poupança curve
+      const poupancaAnnual = state.selicRateAnnual > 0.085 ? 0.0744 : (0.7 * state.selicRateAnnual);
+      const poupancaDaily = Math.pow(1 + poupancaAnnual, 1 / 365) - 1;
+      const savingsEquivalent = asset.valorAplicado * Math.pow(1 + poupancaDaily, days);
+
+      // Wealth Accumulation metrics
+      const isVariavel = ['ACOES', 'FII'].includes(asset.categoria);
+      const totalPeriods = isVariavel ? Math.max(1, days) : Math.max(1, workingDays);
+      
+      const averageDailyRate = totalPeriods > 0 ? (Math.pow(1 + yieldFactor, 1 / totalPeriods) - 1) : 0;
+      const compoundingDaysInMonth = isVariavel ? 30 : 21;
+      const averageMonthlyRate = Math.pow(1 + averageDailyRate, compoundingDaysInMonth) - 1;
+      const compoundingDaysInYear = isVariavel ? 365 : 252;
+      const averageAnnualRate = Math.pow(1 + averageDailyRate, compoundingDaysInYear) - 1;
+
+      const dailyVelocity = grossValue * averageDailyRate;
+      const hourlyVelocity = dailyVelocity / 24;
+      const doublingTimeYears = averageAnnualRate > 0 ? (Math.log(2) / Math.log(1 + averageAnnualRate)) : 0;
+      const interestOnInterest = Math.max(0, yieldAmount - simpleYieldAmount);
+
+      return {
+        days,
+        workingDays,
+        grossValue,
+        yieldAmount,
+        iofAmount,
+        irAmount,
+        netValue,
+        irPercentage,
+        iofPercentage,
+        savingsEquivalent,
+        simpleYieldAmount,
+        interestOnInterest,
+        averageDailyRate,
+        averageMonthlyRate,
+        averageAnnualRate,
+        dailyVelocity,
+        hourlyVelocity,
+        doublingTimeYears
+      };
+    }
+
+    function generateCompoundingHistory(asset, cdiRateAnnual, endDateStr) {
+      const dataPoints = [];
+      const start = parseAsLocalMidnight(asset.dataAplicacao);
+      const end = parseAsLocalMidnight(endDateStr);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return [];
+
+      const totalDays = getDaysBetween(asset.dataAplicacao, endDateStr);
+      const numPoints = Math.min(20, Math.max(6, Math.floor(totalDays / 15) || 1));
+      const stepDays = Math.ceil(totalDays / (numPoints - 1));
+
+      for (let i = 0; i < numPoints; i++) {
+        const currentDays = Math.min(totalDays, i * stepDays);
+        const currentDate = new Date(start);
+        currentDate.setDate(currentDate.getDate() + currentDays);
+        const currentDateStr = getLocalYYYYMMDD(currentDate);
+
+        const val = calculateAssetValuation(asset, cdiRateAnnual, currentDateStr);
+        const formattedLabel = currentDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+
+        dataPoints.push({
+          dateStr: currentDateStr,
+          label: formattedLabel,
+          principal: asset.valorAplicado,
+          simpleValue: asset.valorAplicado + val.simpleYieldAmount,
+          compoundValue: val.grossValue,
+          savingsValue: val.savingsEquivalent
+        });
+
+        if (currentDays === totalDays) break;
+      }
+      return dataPoints;
+    }
+
+    // --- APPLICATION CALCULATIONS AGGREGATE ---
+    function computeAggregates() {
+      let totalApplied = 0;
+      let totalGross = 0;
+      let totalNet = 0;
+      let totalYield = 0;
+      let totalTax = 0;
+      let totalInterestOnInterest = 0;
+      let dailyVelocitySum = 0;
+
+      const categoryData = {
+        'Renda Fixa': { applied: 0, current: 0, netGain: 0 },
+        'Tesouro': { applied: 0, current: 0, netGain: 0 },
+        'FIIs': { applied: 0, current: 0, netGain: 0 },
+        'Ações': { applied: 0, current: 0, netGain: 0 }
+      };
+
+      state.assets.forEach(asset => {
+        const val = calculateAssetValuation(asset, state.cdiRateAnnual, state.simulationDate);
+        totalApplied += asset.valorAplicado;
+        totalGross += val.grossValue;
+        totalNet += val.netValue;
+        totalYield += val.yieldAmount;
+        totalTax += (val.iofAmount + val.irAmount);
+        totalInterestOnInterest += val.interestOnInterest;
+        dailyVelocitySum += val.dailyVelocity;
+
+        // Grouping
+        let grp = 'Renda Fixa';
+        if (asset.categoria === 'TESOURO') grp = 'Tesouro';
+        else if (asset.categoria === 'FII') grp = 'FIIs';
+        else if (asset.categoria === 'ACOES') grp = 'Ações';
+
+        categoryData[grp].applied += asset.valorAplicado;
+        categoryData[grp].current += val.grossValue;
+        categoryData[grp].netGain += (val.netValue - asset.valorAplicado);
+      });
+
+      return {
+        totalApplied,
+        totalGross,
+        totalNet,
+        totalYield,
+        totalTax,
+        totalInterestOnInterest,
+        dailyVelocitySum,
+        categoryData
+      };
+    }
+
+    // --- REALTIME MILLISECOND ROLLING TICKER ---
+    function startTicker(dailyIncomeRate) {
+      if (tickerInterval) clearInterval(tickerInterval);
+      if (dailyIncomeRate <= 0) return;
+
+      const msPerDay = 86400000;
+      const incomePerMs = dailyIncomeRate / msPerDay;
+
+      let lastTime = Date.now();
+      tickerInterval = setInterval(() => {
+        const now = Date.now();
+        const delta = now - lastTime;
+        lastTime = now;
+
+        if (delta <= 0) return;
+
+        // Increase gross total in state slightly
+        const currentAggs = computeAggregates();
+        const additionalYield = incomePerMs * delta;
+        
+        const elements = document.querySelectorAll('.ticker-val');
+        const grossDisplay = document.getElementById('gross-total-container');
+        
+        if (grossDisplay && !state.hideValues) {
+          // Dynamic ticking simulation value
+          const initialVal = currentAggs.totalGross;
+          const tickingVal = initialVal + (additionalYield * 150000); // speed up slightly for rolling presentation
+          grossDisplay.innerHTML = 'R$ ' + tickingVal.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        }
+      }, 30);
+    }
+
+    // --- RENDER FUNCTIONS ---
+    function renderApp() {
+      const aggs = computeAggregates();
+      
+      // Update Core counters (when not ticking)
+      const grossDisplay = document.getElementById('gross-total-container');
+      if (grossDisplay) {
+        if (state.hideValues) {
+          grossDisplay.textContent = 'R$ •••••,••';
+        } else {
+          grossDisplay.textContent = formatCurrency(aggs.totalGross);
+        }
+      }
+
+      document.getElementById('net-total-display').textContent = formatCurrency(aggs.totalNet);
+      document.getElementById('yield-total-display').textContent = formatCurrency(aggs.totalYield);
+      document.getElementById('tax-total-display').textContent = formatCurrency(aggs.totalTax);
+      document.getElementById('compound-premium-display').textContent = formatCurrency(aggs.totalInterestOnInterest);
+      
+      const premiumPct = aggs.totalYield > 0 ? (aggs.totalInterestOnInterest / aggs.totalYield) * 100 : 0;
+      document.getElementById('compound-premium-percent').textContent = `+${premiumPct.toFixed(1)}% do ganho`;
+
+      // Accumulation Velocity
+      document.getElementById('speed-display-monthly').textContent = `+${formatCurrency(aggs.dailyVelocitySum * 21)}/mês`;
+      document.getElementById('speed-display-daily').textContent = `+${formatCurrency(aggs.dailyVelocitySum)}`;
+      document.getElementById('speed-display-second').textContent = state.hideValues ? 'R$ •••••' : `+R$ ${(aggs.dailyVelocitySum / 86400).toFixed(5)}`;
+
+      // Category aggregate panels
+      const aggContainer = document.getElementById('category-aggregates');
+      aggContainer.innerHTML = '';
+      
+      const colors = {
+        'Renda Fixa': 'border-violet-500/20 bg-violet-500/5 text-violet-400',
+        'Tesouro': 'border-blue-500/20 bg-blue-500/5 text-blue-400',
+        'FIIs': 'border-pink-500/20 bg-pink-500/5 text-pink-400',
+        'Ações': 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+      };
+
+      Object.entries(aggs.categoryData).forEach(([catName, data]) => {
+        const pct = aggs.totalGross > 0 ? (data.current / aggs.totalGross) * 100 : 0;
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-xl border ${colors[catName] || 'border-zinc-800'} flex flex-col justify-between space-y-2`;
+        card.innerHTML = `
+          <div class="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            <span>${catName}</span>
+            <span class="font-bold bg-zinc-950 px-1.5 py-0.5 rounded">${pct.toFixed(1)}%</span>
+          </div>
+          <div>
+            <span class="text-[9px] text-zinc-500 block">PATRIMÔNIO ATUAL</span>
+            <strong class="text-sm font-bold font-mono text-zinc-200">${formatCurrency(data.current)}</strong>
+          </div>
+          <div class="flex justify-between text-[10px] pt-1.5 border-t border-zinc-850">
+            <span class="text-zinc-500">Lucro Líquido:</span>
+            <strong class="${data.netGain >= 0 ? 'text-emerald-400' : 'text-red-400'} font-mono">${formatCurrency(data.netGain)}</strong>
+          </div>
+        `;
+        aggContainer.appendChild(card);
+      });
+
+      // Render Assets Table Grid
+      renderAssetsGrid();
+
+      // Render Allocation Chart
+      renderAllocationChart(aggs);
+
+      // Rolling ticker setup
+      startTicker(aggs.dailyVelocitySum);
+
+      // If detail modal is active, update it
+      if (state.selectedAssetId) {
+        refreshAssetDetail(state.selectedAssetId);
+      }
+    }
+
+    function renderAssetsGrid() {
+      const grid = document.getElementById('assets-grid');
+      grid.innerHTML = '';
+
+      const query = state.searchQuery.toLowerCase();
+      const filtered = state.assets.filter(asset => {
+        const matchesSearch = asset.nome.toLowerCase().includes(query) || asset.categoria.toLowerCase().includes(query);
+        const matchesCategory = state.selectedCategory === 'TODOS' || asset.categoria === state.selectedCategory;
+        return matchesSearch && matchesCategory;
+      });
+
+      if (filtered.length === 0) {
+        grid.className = 'col-span-full py-12 flex flex-col items-center justify-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-2xl';
+        grid.innerHTML = `
+          <i data-lucide="filter" class="w-8 h-8 text-zinc-600 mb-2"></i>
+          Nenhum investimento encontrado com os filtros atuais.
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+
+      filtered.forEach(asset => {
+        const val = calculateAssetValuation(asset, state.cdiRateAnnual, state.simulationDate);
+        const netGain = val.netValue - asset.valorAplicado;
+        const totalGainPct = asset.valorAplicado > 0 ? (netGain / asset.valorAplicado) * 100 : 0;
+        const isTaxFree = isTaxExempt(asset.categoria);
+
+        const card = document.createElement('div');
+        // Flash background using state.flashAssets
+        const flashClass = state.flashAssets && state.flashAssets[asset.id] === 'up' ? 'flash-green' : state.flashAssets && state.flashAssets[asset.id] === 'down' ? 'flash-red' : '';
+        
+        card.className = `bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4.5 space-y-3 cursor-pointer transition flex flex-col justify-between ${flashClass}`;
+        card.setAttribute('onclick', `openAssetDetail('${asset.id}')`);
+
+        // Compute cota price or CDI rate
+        const direction = state.priceDirections && state.priceDirections[asset.id];
+        let arrowText = '';
+        let colorClass = 'text-zinc-400 bg-zinc-950/40 border border-zinc-850/50';
+        
+        if (direction === 'up') {
+          arrowText = '▲';
+          colorClass = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
+        } else if (direction === 'down') {
+          arrowText = '▼';
+          colorClass = 'text-red-400 bg-red-500/10 border border-red-500/20';
+        }
+
+        const isSelicAsset = asset.tipoRendimento === 'SELIC' || asset.nome.toLowerCase().includes('selic');
+        let selicSpreadStr = '0,0000';
+        let selicTotalStr = '0,0000';
+        if (isSelicAsset) {
+          let spreadVal = 0;
+          if (asset.agio !== undefined && asset.agio !== null && asset.agio !== '') {
+            spreadVal = parseFloat(asset.agio);
+          } else {
+            spreadVal = asset.taxaRendimento >= 10 ? 0 : asset.taxaRendimento;
+          }
+          const totalVal = (state.selicRateAnnual * 100) + spreadVal;
+          selicSpreadStr = spreadVal.toFixed(4).replace('.', ',');
+          selicTotalStr = totalVal.toFixed(4).replace('.', ',');
+        }
+
+        let indicatorLabel = '';
+        let indicatorValue = '';
+        
+        if (['ACOES', 'FII'].includes(asset.categoria)) {
+          indicatorLabel = asset.categoria === 'ACOES' ? 'AÇÃO' : 'COTA';
+          const price = asset.precoAtual || asset.precoMedio || 0;
+          indicatorValue = formatCurrency(price);
+        } else {
+          if (isSelicAsset) {
+            indicatorLabel = '';
+            indicatorValue = `Selic + ${selicSpreadStr}: ${selicTotalStr}% a.a.`;
+          } else if (asset.tipoRendimento === 'CDI') {
+            indicatorLabel = '';
+            const equivRate = (asset.taxaRendimento / 100) * state.cdiRateAnnual;
+            indicatorValue = `${asset.taxaRendimento}% do CDI: ${(equivRate * 100).toFixed(2).replace('.', ',')}% a.a.`;
+          } else if (asset.tipoRendimento === 'PRE') {
+            indicatorLabel = 'PRÉ';
+            indicatorValue = `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% a.a.`;
+          } else { // IPCA
+            indicatorLabel = 'IPCA+';
+            indicatorValue = `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% a.a.`;
+          }
+        }
+
+        card.innerHTML = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-1.5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-950 border border-zinc-850 text-zinc-400">${asset.categoria}</span>
+                ${isTaxFree ? '<span class="text-[9px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 px-1.5 py-0.2 rounded">ISENTO IR</span>' : ''}
+              </div>
+              
+              <!-- Live Quote/CDI Badge with Arrow -->
+              <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg flex items-center gap-1.5 ${colorClass} transition duration-300">
+                ${indicatorLabel ? `<span class="text-[8px] opacity-60 font-semibold tracking-wider">${indicatorLabel}:</span>` : ''}
+                <span class="flex items-center gap-0.5">
+                  ${arrowText ? `<span class="text-[8px]">${arrowText}</span>` : ''}
+                  ${indicatorValue}
+                </span>
+              </span>
+            </div>
+            
+            <div>
+              <h4 class="font-bold text-xs text-zinc-200 line-clamp-1">${asset.nome}</h4>
+              <p class="text-[9px] text-zinc-500 font-mono mt-0.5">Aplicado em ${formatToBrazilianDate(asset.dataAplicacao)}</p>
+            </div>
+
+            <!-- Value info -->
+            <div class="grid grid-cols-2 gap-2 bg-zinc-950/40 p-2.5 rounded-xl border border-zinc-850/50">
+              <div>
+                <span class="text-[8px] font-mono text-zinc-500 block uppercase">Aplicado</span>
+                <strong class="text-[11px] font-mono text-zinc-300 font-medium">${formatCurrency(asset.valorAplicado)}</strong>
+              </div>
+              <div class="text-right">
+                <span class="text-[8px] font-mono text-zinc-500 block uppercase">Atual Líquido</span>
+                <strong class="text-[11px] font-mono text-violet-400">${formatCurrency(val.netValue)}</strong>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[10px] pt-1">
+              <span class="text-zinc-500 font-medium">Rendimento Líquido:</span>
+              <span class="font-mono font-bold ${netGain >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                +${formatCurrency(netGain)} (+${totalGainPct.toFixed(1)}%)
+              </span>
+            </div>
+          </div>
+
+          <div class="pt-2.5 border-t border-zinc-850/50 flex justify-between items-center text-[10px]">
+            <span class="text-zinc-500 font-mono">Taxa: ${
+              asset.tipoRendimento === 'VARIAVEL' ? 'Mercado' : 
+              isSelicAsset ? `Selic + ${selicSpreadStr}: ${selicTotalStr}% a.a.` :
+              asset.tipoRendimento === 'CDI' ? `${asset.taxaRendimento}% CDI` : 
+              asset.tipoRendimento === 'IPCA' ? `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% + IPCA` : 
+              `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% a.a.`
+            }</span>
+            <span class="text-violet-400 font-semibold hover:underline inline-flex items-center gap-0.5">Detalhes <i data-lucide="arrow-up-right" class="w-3 h-3"></i></span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // --- FILTER PILLS ---
+    function renderFilterPills() {
+      const container = document.getElementById('filter-pills');
+      container.innerHTML = '';
+
+      const pills = ['TODOS', 'CDB', 'TESOURO', 'LCI', 'LCA', 'FII', 'ACOES'];
+      pills.forEach(pill => {
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-1.5 rounded-lg border text-[10px] font-mono font-semibold uppercase transition cursor-pointer ${
+          state.selectedCategory === pill 
+            ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-950/20' 
+            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+        }`;
+        btn.textContent = pill;
+        btn.onclick = () => {
+          state.selectedCategory = pill;
+          renderFilterPills();
+          renderAssetsGrid();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    // --- ALLOCATION CHART RENDERING ---
+    function renderAllocationChart(aggs) {
+      const ctx = document.getElementById('allocation-chart').getContext('2d');
+      const chartLabels = [];
+      const chartValues = [];
+      const bgColors = [];
+
+      const colorPalette = {
+        'Renda Fixa': '#8B5CF6',
+        'Tesouro': '#3B82F6',
+        'FIIs': '#EC4899',
+        'Ações': '#22C55E'
+      };
+
+      Object.entries(aggs.categoryData).forEach(([cat, data]) => {
+        if (data.current > 0) {
+          chartLabels.push(cat);
+          chartValues.push(data.current);
+          bgColors.push(colorPalette[cat]);
+        }
+      });
+
+      // Update total label inside doughnut
+      document.getElementById('chart-total-label').textContent = formatCurrency(aggs.totalGross);
+
+      // Render legend underneath
+      const legendContainer = document.getElementById('chart-legend');
+      legendContainer.innerHTML = '';
+      chartLabels.forEach((label, idx) => {
+        const value = chartValues[idx];
+        const pct = aggs.totalGross > 0 ? (value / aggs.totalGross) * 100 : 0;
+        legendContainer.innerHTML += `
+          <div class="flex items-center gap-2 bg-zinc-950/40 p-2 border border-zinc-850/50 rounded-xl">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${bgColors[idx]}"></span>
+            <div class="flex flex-col overflow-hidden">
+              <strong class="text-[10px] text-zinc-300 line-clamp-1 font-sans">${label}</strong>
+              <span class="text-[9px] font-mono text-zinc-500">${pct.toFixed(1)}%</span>
+            </div>
+          </div>
+        `;
+      });
+
+      if (allocationChartInstance) {
+        allocationChartInstance.destroy();
+      }
+
+      if (chartValues.length === 0) return;
+
+      allocationChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            data: chartValues,
+            backgroundColor: bgColors,
+            borderWidth: 2,
+            borderColor: '#09090b',
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          cutout: '72%',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: !state.hideValues,
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw;
+                  return ' ' + context.label + ': R$ ' + val.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // --- DETAILED MODAL ---
+    window.openAssetDetail = function(id) {
+      state.selectedAssetId = id;
+      refreshAssetDetail(id);
+      updateSnowballToggleButtonsStyles();
+      openModal('detail-modal');
+    };
+
+    window.refreshAssetDetail = function(id) {
+      const asset = state.assets.find(a => a.id === id);
+      if (!asset) return;
+
+      const val = calculateAssetValuation(asset, state.cdiRateAnnual, state.simulationDate);
+
+      // Fill basic modal information
+      document.getElementById('modal-category').textContent = asset.categoria;
+      document.getElementById('modal-title').textContent = asset.nome;
+      
+      const completeMonths = Math.floor(val.days / 30);
+      const remDays = val.days % 30;
+      document.getElementById('modal-dates').textContent = `Aplicado em ${formatToBrazilianDate(asset.dataAplicacao)} • Prazo Decorrido: ${val.days} dias (${val.workingDays} DUs) | ~${completeMonths} meses e ${remDays} dias`;
+
+      // Render Live Badge at the top of Details Modal
+      const liveBadgeContainer = document.getElementById('modal-live-badge-container');
+      if (liveBadgeContainer) {
+        const direction = state.priceDirections && state.priceDirections[asset.id];
+        let arrowText = '';
+        let colorClass = 'text-zinc-400 bg-zinc-950/40 border border-zinc-850/50';
+        
+        if (direction === 'up') {
+          arrowText = '▲';
+          colorClass = 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
+        } else if (direction === 'down') {
+          arrowText = '▼';
+          colorClass = 'text-red-400 bg-red-500/10 border border-red-500/20';
+        }
+
+        const isSelicAsset = asset.tipoRendimento === 'SELIC' || asset.nome.toLowerCase().includes('selic');
+        let selicSpreadStr = '0,0000';
+        let selicTotalStr = '0,0000';
+        if (isSelicAsset) {
+          let spreadVal = 0;
+          if (asset.agio !== undefined && asset.agio !== null && asset.agio !== '') {
+            spreadVal = parseFloat(asset.agio);
+          } else {
+            spreadVal = asset.taxaRendimento >= 10 ? 0 : asset.taxaRendimento;
+          }
+          const totalVal = (state.selicRateAnnual * 100) + spreadVal;
+          selicSpreadStr = spreadVal.toFixed(4).replace('.', ',');
+          selicTotalStr = totalVal.toFixed(4).replace('.', ',');
+        }
+
+        let indicatorLabel = '';
+        let indicatorValue = '';
+        
+        if (['ACOES', 'FII'].includes(asset.categoria)) {
+          indicatorLabel = asset.categoria === 'ACOES' ? 'AÇÃO' : 'COTA';
+          const price = asset.precoAtual || asset.precoMedio || 0;
+          indicatorValue = formatCurrency(price);
+        } else {
+          if (isSelicAsset) {
+            indicatorLabel = '';
+            indicatorValue = `Selic + ${selicSpreadStr}: ${selicTotalStr}% a.a.`;
+          } else if (asset.tipoRendimento === 'CDI') {
+            indicatorLabel = '';
+            const equivRate = (asset.taxaRendimento / 100) * state.cdiRateAnnual;
+            indicatorValue = `${asset.taxaRendimento}% do CDI: ${(equivRate * 100).toFixed(2).replace('.', ',')}% a.a.`;
+          } else if (asset.tipoRendimento === 'PRE') {
+            indicatorLabel = 'PRÉ';
+            indicatorValue = `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% a.a.`;
+          } else { // IPCA
+            indicatorLabel = 'IPCA+';
+            indicatorValue = `${asset.taxaRendimento.toFixed(2).replace('.', ',')}% a.a.`;
+          }
+        }
+
+        liveBadgeContainer.innerHTML = `
+          <span class="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 ${colorClass} transition duration-300">
+            ${indicatorLabel ? `<span class="text-[9px] opacity-60 font-semibold tracking-wider">${indicatorLabel}:</span>` : ''}
+            <span class="flex items-center gap-1">
+              ${arrowText ? `<span class="text-[9px]">${arrowText}</span>` : ''}
+              ${indicatorValue}
+            </span>
+          </span>
+        `;
+      }
+
+      // 1. Basic numbers
+      document.getElementById('modal-applied').textContent = formatCurrency(asset.valorAplicado);
+      document.getElementById('modal-gross-value').textContent = formatCurrency(val.grossValue);
+      const netProfit = val.netValue - asset.valorAplicado;
+      document.getElementById('modal-net-yield').textContent = formatCurrency(netProfit);
+      document.getElementById('modal-net-value').textContent = formatCurrency(val.netValue);
+
+      // 2. IR and IOF Details
+      const isTaxFree = isTaxExempt(asset.categoria);
+      
+      const irBadge = document.getElementById('modal-ir-badge');
+      const irValue = document.getElementById('modal-ir-value');
+      const iofBadge = document.getElementById('modal-iof-badge');
+      const iofValue = document.getElementById('modal-iof-value');
+
+      if (isTaxFree) {
+        irBadge.textContent = 'ISENTO';
+        irBadge.className = 'text-[8px] font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        irValue.textContent = 'R$ 0,00';
+        
+        iofBadge.textContent = 'ISENTO';
+        iofBadge.className = 'text-[8px] font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        iofValue.textContent = 'R$ 0,00';
+      } else {
+        // IR regressivo
+        irBadge.textContent = `${val.irPercentage.toFixed(1)}%`;
+        irBadge.className = 'text-[8px] font-bold font-mono px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20';
+        irValue.textContent = formatCurrency(val.irAmount);
+
+        // IOF regressivo
+        if (val.days >= 30) {
+          iofBadge.textContent = '0% (ISENTO > 30d)';
+          iofBadge.className = 'text-[8px] font-bold font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700';
+          iofValue.textContent = 'R$ 0,00';
+        } else {
+          iofBadge.textContent = `${val.iofPercentage}%`;
+          iofBadge.className = 'text-[8px] font-bold font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20';
+          iofValue.textContent = formatCurrency(val.iofAmount);
+        }
+      }
+
+      // 3. Poupança Comparison
+      const isSelicHigh = state.selicRateAnnual > 0.085;
+      const poupancaBadge = document.getElementById('poupanca-rule-badge');
+      if (isSelicHigh) {
+        poupancaBadge.textContent = 'REGRA: 0,5% a.m. + TR (Selic > 8,5%)';
+      } else {
+        poupancaBadge.textContent = `REGRA: 70% da Selic (Selic ≤ 8,5% - atual ${(state.selicRateAnnual * 70).toFixed(2)}%)`;
+      }
+
+      const assetNetProfit = val.netValue - asset.valorAplicado;
+      const savingsProfit = val.savingsEquivalent - asset.valorAplicado;
+
+      document.getElementById('comparison-asset-profit').textContent = formatCurrency(assetNetProfit);
+      document.getElementById('comparison-savings-profit').textContent = formatCurrency(savingsProfit);
+
+      // Bar percentage calculations
+      let assetPercent = 100;
+      let savingsPercent = 100;
+
+      if (assetNetProfit > savingsProfit) {
+        savingsPercent = assetNetProfit > 0 ? Math.round((savingsProfit / assetNetProfit) * 100) : 0;
+      } else if (savingsProfit > assetNetProfit) {
+        assetPercent = savingsProfit > 0 ? Math.round((assetNetProfit / savingsProfit) * 100) : 0;
+      }
+
+      // Safeguards for negative/zero profits
+      if (assetNetProfit <= 0) assetPercent = 0;
+      if (savingsProfit <= 0) savingsPercent = 0;
+
+      document.getElementById('comparison-asset-percent').textContent = `${assetPercent}%`;
+      document.getElementById('comparison-savings-percent').textContent = `${savingsPercent}%`;
+
+      document.getElementById('comparison-asset-bar').style.width = `${assetPercent}%`;
+      document.getElementById('comparison-savings-bar').style.width = `${savingsPercent}%`;
+
+      const ratio = savingsProfit > 0 ? (assetNetProfit / savingsProfit) * 100 : 0;
+      const comparisonVerdict = document.getElementById('comparison-verdict');
+      
+      if (assetNetProfit > savingsProfit) {
+        comparisonVerdict.innerHTML = `Este ativo rendeu <strong class="text-emerald-400 font-bold">${ratio.toFixed(0)}%</strong> do rendimento da Poupança (<strong class="text-emerald-400 font-bold">+${(ratio - 100).toFixed(0)}%</strong> de lucro extra!).`;
+      } else if (assetNetProfit < savingsProfit) {
+        comparisonVerdict.innerHTML = `Poupança superou o ativo neste prazo: o ativo obteve apenas <strong class="text-orange-400 font-bold">${ratio.toFixed(0)}%</strong> do ganho da Poupança.`;
+      } else {
+        comparisonVerdict.innerHTML = `Rendimento equivalente ao da Poupança neste prazo.`;
+      }
+
+      // 4. Detailed Monthly Yield / Remaining Days split
+      let monthlyAvg = 0;
+      let remainingDaysValue = 0;
+      if (val.days > 0) {
+        const dailyProfit = netProfit / val.days;
+        monthlyAvg = dailyProfit * 30;
+        remainingDaysValue = dailyProfit * remDays;
+      }
+      
+      document.getElementById('modal-monthly-avg-value').textContent = `${formatCurrency(monthlyAvg)}/mês`;
+      document.getElementById('modal-monthly-avg-desc').textContent = completeMonths > 0 
+        ? `Média proporcional por mês (~30 dias) considerando ${completeMonths} meses completos.`
+        : `Sem meses completos ainda (total ${val.days} dias).`;
+      
+      document.getElementById('modal-remaining-days-value').textContent = formatCurrency(remainingDaysValue);
+      document.getElementById('modal-remaining-days-desc').textContent = `Valor proporcional correspondente aos ${remDays} dias que sobraram.`;
+
+      // Compounding stats
+      document.getElementById('modal-interest-on-interest').textContent = formatCurrency(val.interestOnInterest);
+      
+      const years = Math.floor(val.doublingTimeYears);
+      const months = Math.round((val.doublingTimeYears - years) * 12);
+      let doublingStr = '';
+      if (!isFinite(val.doublingTimeYears) || val.averageAnnualRate <= 0) {
+        doublingStr = 'Rendimento Nulo';
+      } else if (years > 100) {
+        doublingStr = '+100 anos';
+      } else {
+        doublingStr = `${years} anos e ${months} meses`;
+      }
+      document.getElementById('modal-doubling-time').textContent = doublingStr;
+
+      document.getElementById('modal-speed-daily').textContent = `+${formatCurrency(val.dailyVelocity)}`;
+      document.getElementById('modal-speed-hourly').textContent = `+${formatCurrency(val.hourlyVelocity)}`;
+
+      document.getElementById('modal-rate-day').textContent = `${(val.averageDailyRate * 100).toFixed(4)}%`;
+      document.getElementById('modal-rate-month').textContent = `${(val.averageMonthlyRate * 100).toFixed(2)}%`;
+      document.getElementById('modal-rate-year').textContent = `${(val.averageAnnualRate * 100).toFixed(2)}%`;
+
+      // Sync slider and picker values inside modal
+      const targetSlider = document.getElementById('target-date-slider');
+      const targetPicker = document.getElementById('target-date-picker');
+      const targetDisplay = document.getElementById('target-date-display');
+      
+      const offsetDays = getDaysBetween(getLocalYYYYMMDD(new Date()), state.simulationDate);
+      if (targetSlider) targetSlider.value = Math.max(0, Math.min(1000, offsetDays));
+      if (targetPicker) targetPicker.value = state.simulationDate;
+      if (targetDisplay) targetDisplay.textContent = formatToBrazilianDate(state.simulationDate);
+
+      // Set up Edit / Delete buttons
+      document.getElementById('modal-delete-btn').onclick = () => {
+        state.assetToDeleteId = asset.id;
+        openModal('delete-confirm-modal');
+      };
+      document.getElementById('modal-edit-btn').onclick = () => openEditForm(asset.id);
+
+      // Snowball Area Chart (Chart.js)
+      renderSnowballChart(asset);
+    };
+
+    function renderSnowballChart(asset) {
+      const ctx = document.getElementById('snowball-chart').getContext('2d');
+      const timelineData = generateCompoundingHistory(asset, state.cdiRateAnnual, state.simulationDate);
+
+      const labels = timelineData.map(t => t.label);
+      const compoundSeries = timelineData.map(t => t.compoundValue);
+      const simpleSeries = timelineData.map(t => t.simpleValue);
+      const savingsSeries = timelineData.map(t => t.savingsValue);
+
+      if (snowballChartInstance) {
+        snowballChartInstance.destroy();
+      }
+
+      const datasets = [];
+      if (state.chartFilters.compound) {
+        datasets.push({
+          label: 'Juros Compostos',
+          data: compoundSeries,
+          borderColor: '#8B5CF6',
+          backgroundColor: 'rgba(139, 92, 246, 0.05)',
+          fill: true,
+          borderWidth: 2,
+          tension: 0.2
+        });
+      }
+      if (state.chartFilters.simple) {
+        datasets.push({
+          label: 'Juros Simples',
+          data: simpleSeries,
+          borderColor: '#a1a1aa',
+          borderDash: [5, 5],
+          fill: false,
+          borderWidth: 1.5,
+          tension: 0.1
+        });
+      }
+      if (state.chartFilters.savings) {
+        datasets.push({
+          label: 'Poupança',
+          data: savingsSeries,
+          borderColor: '#EAB308',
+          borderDash: [3, 3],
+          fill: false,
+          borderWidth: 1.2,
+          tension: 0.1
+        });
+      }
+
+      snowballChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: !state.hideValues,
+              callbacks: {
+                label: function(context) {
+                  return ' ' + context.dataset.label + ': R$ ' + context.raw.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#71717a', font: { size: 8, family: 'monospace' } },
+              grid: { display: false }
+            },
+            y: {
+              ticks: {
+                color: '#71717a',
+                font: { size: 8, family: 'monospace' },
+                callback: function(val) {
+                  if (state.hideValues) return '••••';
+                  if (val >= 1000) return 'R$ ' + (val / 1000).toFixed(0) + 'k';
+                  return 'R$ ' + val;
+                }
+              },
+              grid: { color: '#27272a', opacity: 0.1 }
+            }
+          }
+        }
+      });
+    }
+
+    function showNotification(message, type = 'info') {
+      const toast = document.getElementById('notification-toast');
+      const msgElem = document.getElementById('notification-message');
+      const iconElem = document.getElementById('notification-icon');
+      const container = document.getElementById('notification-icon-container');
+
+      if (!toast || !msgElem || !iconElem || !container) return;
+
+      msgElem.textContent = message;
+      
+      if (type === 'success') {
+        container.className = 'p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/20';
+        iconElem.setAttribute('data-lucide', 'check-circle');
+      } else if (type === 'error') {
+        container.className = 'p-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/20';
+        iconElem.setAttribute('data-lucide', 'alert-circle');
+      } else {
+        container.className = 'p-1.5 rounded-lg bg-violet-500/20 text-violet-400 border border-violet-500/20';
+        iconElem.setAttribute('data-lucide', 'info');
+      }
+
+      if (window.lucide) lucide.createIcons();
+      
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3000);
+    }
+
+    // --- MODAL TRIGGERS ---
+    window.openModal = function(id) {
+      document.getElementById(id).classList.remove('hidden');
+    };
+
+    window.closeModal = function(id) {
+      if (id === 'detail-modal') {
+        state.selectedAssetId = null;
+      }
+      document.getElementById(id).classList.add('hidden');
+    };
+
+    // --- CRUD OPERATORS ---
+    window.openEditForm = function(id) {
+      const asset = state.assets.find(a => a.id === id);
+      if (!asset) return;
+
+      closeModal('detail-modal');
+
+      document.getElementById('form-asset-id').value = asset.id;
+      document.getElementById('form-name').value = asset.nome;
+      document.getElementById('form-category').value = asset.categoria;
+      document.getElementById('form-applied').value = asset.valorAplicado;
+      document.getElementById('form-date').value = asset.dataAplicacao;
+      document.getElementById('form-rendimento-type').value = asset.tipoRendimento || 'CDI';
+      document.getElementById('form-tax').value = asset.taxaRendimento;
+      
+      document.getElementById('form-qty').value = asset.quantidade || '';
+      document.getElementById('form-price-avg').value = asset.precoMedio || '';
+      document.getElementById('form-price-current').value = asset.precoAtual || asset.precoMedio || '';
+      document.getElementById('form-liquidez').value = asset.liquidez || 'DIARIA';
+      document.getElementById('form-date-vencimento').value = asset.dataVencimento || '';
+      document.getElementById('form-resgatar').checked = !!asset.resgatarAntes;
+      document.getElementById('form-agio').value = (asset.agio !== undefined && asset.agio !== null) ? asset.agio : '';
+
+      toggleCategoryFields();
+      syncCustomInputsAndLabels();
+      document.getElementById('add-modal-title').textContent = 'Editar Ativo Custodiado';
+      openModal('add-modal');
+    };
+
+    window.deleteAsset = function(id) {
+      state.assets = state.assets.filter(a => String(a.id) !== String(id));
+      localStorage.setItem('veloce_portfolio_assets', JSON.stringify(state.assets));
+      closeModal('delete-confirm-modal');
+      closeModal('detail-modal');
+      renderApp();
+      showNotification('Ativo excluído com sucesso!', 'success');
+    };
+
+    // Toggle fields based on category in Form
+    function toggleCategoryFields() {
+      const cat = document.getElementById('form-category').value;
+      const fixedFields = document.getElementById('fixed-income-fields');
+      const varFields = document.getElementById('variable-income-fields');
+      const agioWrapper = document.getElementById('agio-field-wrapper');
+
+      if (['FII', 'ACOES'].includes(cat)) {
+        fixedFields.classList.add('hidden');
+        varFields.classList.remove('hidden');
+      } else {
+        fixedFields.classList.remove('hidden');
+        varFields.classList.add('hidden');
+
+        if (cat === 'TESOURO') {
+          agioWrapper?.classList.remove('hidden');
+          fixedFields.classList.remove('grid-cols-2');
+          fixedFields.classList.add('grid-cols-[1.5fr_0.75fr_1fr]');
+        } else {
+          agioWrapper?.classList.add('hidden');
+          fixedFields.classList.remove('grid-cols-[1.5fr_0.75fr_1fr]');
+          fixedFields.classList.add('grid-cols-2');
+        }
+      }
+    }
+
+    document.getElementById('form-category').addEventListener('change', toggleCategoryFields);
+
+    document.getElementById('asset-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const dateInput = document.getElementById('form-date');
+      if (!dateInput.value) {
+        showNotification('Por favor, selecione uma data de aplicação válida.', 'error');
+        return;
+      }
+
+      const id = document.getElementById('form-asset-id').value || Math.random().toString(36).substring(2, 9);
+      const isEdit = !!document.getElementById('form-asset-id').value;
+
+      const category = document.getElementById('form-category').value;
+      const name = document.getElementById('form-name').value;
+      const applied = parseFloat(document.getElementById('form-applied').value);
+      const date = document.getElementById('form-date').value;
+      const tipoRendimento = ['FII', 'ACOES'].includes(category) ? 'VARIAVEL' : document.getElementById('form-rendimento-type').value;
+      const tax = parseFloat(document.getElementById('form-tax').value) || 0;
+      const agioInput = document.getElementById('form-agio');
+      const agio = agioInput ? (parseFloat(agioInput.value) || 0) : 0;
+      
+      const qty = parseInt(document.getElementById('form-qty').value) || null;
+      const priceAvg = parseFloat(document.getElementById('form-price-avg').value) || null;
+      const priceCurrent = parseFloat(document.getElementById('form-price-current').value) || priceAvg;
+      const liquidez = document.getElementById('form-liquidez').value;
+      const dateVencimento = document.getElementById('form-date-vencimento').value || null;
+      const resgatarAntes = document.getElementById('form-resgatar').checked;
+
+      const assetObj = {
+        id,
+        nome: name,
+        categoria: category,
+        valorAplicado: applied,
+        dataAplicacao: date,
+        tipoRendimento,
+        taxaRendimento: tipoRendimento === 'VARIAVEL' ? 0 : tax,
+        agio: category === 'TESOURO' ? agio : null,
+        liquidez,
+        dataVencimento: dateVencimento,
+        resgatarAntes: resgatarAntes
+      };
+
+      if (['FII', 'ACOES'].includes(category)) {
+        assetObj.quantidade = qty;
+        assetObj.precoMedio = priceAvg;
+        assetObj.precoAtual = priceCurrent;
+      }
+
+      if (isEdit) {
+        state.assets = state.assets.map(a => a.id === id ? assetObj : a);
+      } else {
+        state.assets.push(assetObj);
+      }
+
+      localStorage.setItem('veloce_portfolio_assets', JSON.stringify(state.assets));
+      closeModal('add-modal');
+      renderApp();
+    });
+
+    // Helper robust function to fetch with multiple public CORS proxies as fallbacks
+    async function fetchWithFallback(targetUrl) {
+      // 1. Try direct fetch first
+      try {
+        const response = await fetch(targetUrl);
+        if (response.ok) return response;
+      } catch (directErr) {
+        console.warn('Direct fetch failed for ' + targetUrl + ', trying proxy allorigins...', directErr);
+      }
+
+      // 2. Try api.allorigins.win (extremely robust, raw endpoint)
+      try {
+        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(url);
+        if (response.ok) return response;
+      } catch (allOriginsErr) {
+        console.warn('allorigins proxy failed, trying corsproxy.io...', allOriginsErr);
+      }
+
+      // 3. Try corsproxy.io as fallback
+      try {
+        const url = `https://corsproxy.io/?` + encodeURIComponent(targetUrl);
+        const response = await fetch(url);
+        if (response.ok) return response;
+      } catch (corsProxyErr) {
+        console.error('All proxies failed.', corsProxyErr);
+      }
+
+      throw new Error('All connection attempts failed for: ' + targetUrl);
+    }
+
+    window.fetchCurrentMarketPrice = async function(e) {
+      const nameInput = document.getElementById('form-name');
+      const priceCurrentInput = document.getElementById('form-price-current');
+      if (!nameInput || !priceCurrentInput) return;
+
+      const nameText = nameInput.value.trim();
+      if (!nameText) {
+        alert('Por favor, digite o nome do ativo (ex: GGRC11, PETR4, HGLG11) para buscar a cotação.');
+        return;
+      }
+
+      // Try to extract ticker (4 uppercase letters followed by 1 or 2 digits)
+      const tickerMatch = nameText.toUpperCase().match(/[A-Z]{4}[0-9]{1,2}/);
+      if (!tickerMatch) {
+        alert(`Não foi possível extrair um código (ticker) válido do nome "${nameText}". Exemplos de nomes válidos: "GGRC11", "PETR4 (Petrobras)" ou "FII HGLG11".`);
+        return;
+      }
+
+      const ticker = tickerMatch[0];
+      const searchBtn = e?.currentTarget || event?.currentTarget;
+      let originalHtml = '';
+      if (searchBtn) {
+        originalHtml = searchBtn.innerHTML;
+        searchBtn.innerHTML = '<i class="w-2.5 h-2.5 animate-spin inline-block"></i>...';
+        searchBtn.disabled = true;
+      }
+
+      try {
+        let price = null;
+
+        // 1. Try mfinance.com.br API (native B3, extremely fast and CORS-enabled)
+        const isFiiLikely = ticker.endsWith('11');
+        const firstEndpoint = isFiiLikely ? 'fiis' : 'stocks';
+        const secondEndpoint = isFiiLikely ? 'stocks' : 'fiis';
+
+        try {
+          const res = await fetch(`https://mfinance.com.br/api/v1/${firstEndpoint}/${ticker}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data.lastPrice === 'number') {
+              price = data.lastPrice;
+            }
+          }
+        } catch (e) {
+          console.warn(`mfinance ${firstEndpoint} fetch failed, trying fallback...`, e);
+        }
+
+        if (price === null) {
+          try {
+            const res = await fetch(`https://mfinance.com.br/api/v1/${secondEndpoint}/${ticker}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && typeof data.lastPrice === 'number') {
+                price = data.lastPrice;
+              }
+            }
+          } catch (e) {
+            console.warn(`mfinance ${secondEndpoint} fetch failed, trying Yahoo...`, e);
+          }
+        }
+
+        // 2. If mfinance failed, fall back to Yahoo Finance via CORS proxies
+        if (price === null) {
+          console.log(`Trying Yahoo Finance fallback for ${ticker}...`);
+          const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}.SA?interval=1d&_nocache=${Date.now()}`;
+          const response = await fetchWithFallback(targetUrl);
+          const data = await response.json();
+          const result = data?.chart?.result?.[0];
+          const yahooPrice = result?.meta?.regularMarketPrice;
+          if (typeof yahooPrice === 'number') {
+            price = yahooPrice;
+          }
+        }
+
+        if (price !== undefined && price !== null) {
+          priceCurrentInput.value = price.toFixed(2);
+          // Highlight input briefly to indicate success
+          priceCurrentInput.classList.add('border-emerald-500', 'bg-emerald-950/20');
+          setTimeout(() => {
+            priceCurrentInput.classList.remove('border-emerald-500', 'bg-emerald-950/20');
+          }, 1000);
+        } else {
+          throw new Error('Preço não encontrado nos dados retornados.');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar cotação de ' + ticker + ':', err);
+        // Special custom fallback or informative alert
+        alert(`Não foi possível carregar a cotação em tempo real para o ticker ${ticker} automaticamente. Por favor, digite o valor de mercado (R$ 9,87 no caso de GGRC11) manualmente no campo.`);
+      } finally {
+        if (searchBtn) {
+          searchBtn.innerHTML = originalHtml;
+          searchBtn.disabled = false;
+        }
+      }
+    };
+
+    // --- INTEGRATIONS: API QUOTES & CDI FLOWS ---
+    async function fetchCdiRate() {
+      if (state.cdiMode !== 'auto') return;
+      try {
+        const response = await fetchWithFallback('https://brasilapi.com.br/api/taxas/v1');
+        const data = await response.json();
+        const cdiObj = data.find(item => item.nome === 'CDI');
+        if (cdiObj && typeof cdiObj.valor === 'number') {
+          state.cdiRateAnnual = cdiObj.valor / 100;
+          document.getElementById('cdi-input').value = (state.cdiRateAnnual * 100).toFixed(2);
+          localStorage.setItem('veloce_cdi_rate', state.cdiRateAnnual);
+          renderApp();
+        }
+      } catch (err) {
+        console.error('BrasilAPI fallback used.', err);
+      }
+    }
+
+    async function fetchSelicRate() {
+      if (state.selicMode !== 'auto') return;
+      try {
+        const response = await fetchWithFallback('https://brasilapi.com.br/api/taxas/v1');
+        const data = await response.json();
+        const selicObj = data.find(item => item.nome === 'Selic');
+        if (selicObj && typeof selicObj.valor === 'number') {
+          state.selicRateAnnual = selicObj.valor / 100;
+          const inputEl = document.getElementById('selic-input');
+          if (inputEl) {
+            inputEl.value = (state.selicRateAnnual * 100).toFixed(2);
+          }
+          localStorage.setItem('veloce_selic_rate', state.selicRateAnnual);
+          renderApp();
+        }
+      } catch (err) {
+        console.error('BrasilAPI fallback for Selic failed.', err);
+      }
+    }
+
+    async function fetchUsdQuote() {
+      try {
+        const response = await fetchWithFallback('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+        const data = await response.json();
+        if (data && data.USDBRL) {
+          state.dollarQuote = data.USDBRL;
+          const price = parseFloat(data.USDBRL.bid);
+          document.getElementById('usd-quote').textContent = `R$ ${price.toFixed(3)}`;
+        }
+      } catch (err) {
+        document.getElementById('usd-quote').textContent = 'Erro ao carregar';
+      }
+    }
+
+    async function fetchHistoricalDailyCdi() {
+      // Find oldest asset date
+      if (state.assets.length === 0) return;
+      let oldest = getLocalYYYYMMDD(new Date());
+      state.assets.forEach(a => {
+        if (a.dataAplicacao && a.dataAplicacao < oldest) oldest = a.dataAplicacao;
+      });
+
+      // Fetch from BCB SGS series 12
+      const oldestDate = new Date(oldest + 'T12:00:00');
+      oldestDate.setDate(oldestDate.getDate() - 7); // pad
+
+      const startParam = `${String(oldestDate.getDate()).padStart(2, '0')}/${String(oldestDate.getMonth() + 1).padStart(2, '0')}/${oldestDate.getFullYear()}`;
+      const today = new Date();
+      const endParam = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+      try {
+        const targetUrl = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=${startParam}&dataFinal=${endParam}`;
+        const response = await fetchWithFallback(targetUrl);
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          const ratesMap = {};
+          data.forEach(item => {
+            if (item.data && item.valor) {
+              const [d, m, y] = item.data.split('/');
+              ratesMap[`${y}-${m}-${d}`] = parseFloat(item.valor) / 100;
+            }
+          });
+          state.historicalCdiRates = ratesMap;
+          localStorage.setItem('veloce_historical_cdi_rates', JSON.stringify(ratesMap));
+          renderApp();
+        } else {
+          throw new Error('Response is not an array');
+        }
+      } catch (err) {
+        console.warn('BCB SGS CDI live fetch bypassed, generating mathematical fallback rates:', err);
+        const ratesMap = {};
+        const iter = new Date(oldestDate);
+        const endIter = new Date(today);
+        const dailyRate = Math.pow(1 + state.cdiRateAnnual, 1 / 252) - 1;
+        while (iter <= endIter) {
+          const dayOfWeek = iter.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            const dateStr = `${iter.getFullYear()}-${String(iter.getMonth() + 1).padStart(2, '0')}-${String(iter.getDate()).padStart(2, '0')}`;
+            ratesMap[dateStr] = dailyRate;
+          }
+          iter.setDate(iter.getDate() + 1);
+        }
+        state.historicalCdiRates = ratesMap;
+        localStorage.setItem('veloce_historical_cdi_rates', JSON.stringify(ratesMap));
+        renderApp();
+      }
+    }
+
+    // --- REALTIME PRICE FLUCTUATIONS FOR VARIABLES AND FIXED INCOME ---
+    function triggerPriceFluctuation() {
+      const directions = { ...state.priceDirections };
+      const flash = {};
+
+      // 1. Fluctuate CDI benchmark slightly
+      const oldCdi = state.cdiRateAnnual;
+      const cdiVariance = (Math.random() * 0.15 - 0.075) / 100; // -0.075% to +0.075% relative change
+      const newCdi = Math.max(0.01, parseFloat((oldCdi * (1 + cdiVariance)).toFixed(6)));
+      state.cdiRateAnnual = newCdi;
+      localStorage.setItem('veloce_cdi_rate', state.cdiRateAnnual);
+
+      const cdiInput = document.getElementById('cdi-input');
+      if (cdiInput) {
+        cdiInput.value = (state.cdiRateAnnual * 100).toFixed(2);
+      }
+      const cdiDirection = newCdi > oldCdi ? 'up' : newCdi < oldCdi ? 'down' : null;
+
+      // 2. Map and fluctuate individual asset metrics
+      state.assets = state.assets.map(asset => {
+        if (['ACOES', 'FII'].includes(asset.categoria)) {
+          const currentPrice = asset.precoAtual || asset.precoMedio || 10;
+          const variance = (Math.random() * 2.4 - 1.2) / 100;
+          const newPrice = Math.max(0.01, parseFloat((currentPrice * (1 + variance)).toFixed(2)));
+          
+          if (newPrice !== currentPrice) {
+            const dir = newPrice > currentPrice ? 'up' : 'down';
+            directions[asset.id] = dir;
+            flash[asset.id] = dir;
+          }
+          return { ...asset, precoAtual: newPrice };
+        } else {
+          if (asset.tipoRendimento === 'CDI') {
+            // CDI-linked asset follows CDI benchmark fluctuation direction
+            if (cdiDirection) {
+              directions[asset.id] = cdiDirection;
+              flash[asset.id] = cdiDirection;
+            }
+            return asset;
+          } else {
+            // PRE or IPCA assets fluctuate their yield rate slightly
+            const currentTax = asset.taxaRendimento || 5;
+            const variance = (Math.random() * 0.04 - 0.02); // absolute rate change between -0.02% and +0.02%
+            const newTax = Math.max(0.1, parseFloat((currentTax + variance).toFixed(2)));
+            
+            if (newTax !== currentTax) {
+              const dir = newTax > currentTax ? 'up' : 'down';
+              directions[asset.id] = dir;
+              flash[asset.id] = dir;
+            }
+            return { ...asset, taxaRendimento: newTax };
+          }
+        }
+      });
+
+      state.priceDirections = directions;
+      state.flashAssets = flash;
+      localStorage.setItem('veloce_price_directions', JSON.stringify(directions));
+      localStorage.setItem('veloce_portfolio_assets', JSON.stringify(state.assets));
+
+      renderApp();
+
+      // Reset flash highlight after 1.2s, leaving arrow indicators active
+      setTimeout(() => {
+        state.flashAssets = {};
+        renderAssetsGrid();
+      }, 1200);
+    }
+
+    // --- SETUP HANDLERS & LISTENERS ---
+    document.getElementById('add-asset-btn').addEventListener('click', () => {
+      document.getElementById('form-asset-id').value = '';
+      document.getElementById('asset-form').reset();
+      const currentPriceInput = document.getElementById('form-price-current');
+      if (currentPriceInput) currentPriceInput.value = '';
+      document.getElementById('add-modal-title').textContent = 'Cadastrar Novo Investimento';
+      toggleCategoryFields();
+      syncCustomInputsAndLabels();
+      openModal('add-modal');
+    });
+
+    document.getElementById('visibility-btn').addEventListener('click', () => {
+      state.hideValues = !state.hideValues;
+      localStorage.setItem('veloce_hide_values', state.hideValues);
+      
+      const icon = document.getElementById('visibility-icon');
+      if (state.hideValues) {
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+      renderApp();
+    });
+
+    document.getElementById('selic-input').addEventListener('change', function() {
+      state.selicRateAnnual = parseFloat(this.value) / 100;
+      state.selicMode = 'manual';
+      document.getElementById('selic-mode-btn').textContent = 'MANUAL';
+      localStorage.setItem('veloce_selic_rate', state.selicRateAnnual);
+      localStorage.setItem('veloce_selic_mode', 'manual');
+      renderApp();
+    });
+
+    document.getElementById('selic-mode-btn').addEventListener('click', function() {
+      if (state.selicMode === 'auto') {
+        state.selicMode = 'manual';
+        this.textContent = 'MANUAL';
+      } else {
+        state.selicMode = 'auto';
+        this.textContent = 'AUTO';
+        fetchSelicRate();
+      }
+      localStorage.setItem('veloce_selic_mode', state.selicMode);
+    });
+
+    document.getElementById('cdi-input').addEventListener('change', function() {
+      state.cdiRateAnnual = parseFloat(this.value) / 100;
+      state.cdiMode = 'manual';
+      document.getElementById('cdi-mode-btn').textContent = 'MANUAL';
+      localStorage.setItem('veloce_cdi_rate', state.cdiRateAnnual);
+      localStorage.setItem('veloce_cdi_mode', 'manual');
+      renderApp();
+    });
+
+    document.getElementById('cdi-mode-btn').addEventListener('click', function() {
+      if (state.cdiMode === 'auto') {
+        state.cdiMode = 'manual';
+        this.textContent = 'MANUAL';
+      } else {
+        state.cdiMode = 'auto';
+        this.textContent = 'AUTO';
+        fetchCdiRate();
+      }
+      localStorage.setItem('veloce_cdi_mode', state.cdiMode);
+    });
+
+    function updatePriceTimer() {
+      const ind = document.getElementById('fluctuate-indicator');
+      const btnText = document.getElementById('fluctuate-btn-text');
+      const manualBtn = document.getElementById('manual-update-btn');
+      
+      if (autoPriceInterval) clearInterval(autoPriceInterval);
+      
+      if (state.autoUpdatePrices) {
+        if (ind) ind.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        if (btnText) btnText.textContent = 'AUTO ON';
+        if (manualBtn) {
+          manualBtn.className = 'text-[10px] bg-zinc-950 border border-zinc-900 px-2 py-0.5 rounded text-zinc-600 cursor-not-allowed transition flex items-center gap-1';
+          manualBtn.disabled = true;
+        }
+        autoPriceInterval = setInterval(triggerPriceFluctuation, state.priceUpdateInterval * 1000);
+      } else {
+        if (ind) ind.className = 'w-2 h-2 rounded-full bg-zinc-600';
+        if (btnText) btnText.textContent = 'AUTO OFF';
+        if (manualBtn) {
+          manualBtn.className = 'text-[10px] bg-violet-600/20 border border-violet-500/30 px-2 py-0.5 rounded text-violet-300 hover:bg-violet-600/30 hover:text-white transition flex items-center gap-1';
+          manualBtn.disabled = false;
+        }
+      }
+    }
+
+    document.getElementById('fluctuate-btn').addEventListener('click', function() {
+      state.autoUpdatePrices = !state.autoUpdatePrices;
+      localStorage.setItem('veloce_auto_update_prices', state.autoUpdatePrices);
+      updatePriceTimer();
+    });
+
+    document.getElementById('interval-dec-btn').addEventListener('click', function() {
+      state.priceUpdateInterval = Math.max(1, state.priceUpdateInterval - 1);
+      localStorage.setItem('veloce_price_update_interval', state.priceUpdateInterval);
+      document.getElementById('interval-display').textContent = state.priceUpdateInterval + 's';
+      updatePriceTimer();
+    });
+
+    document.getElementById('interval-inc-btn').addEventListener('click', function() {
+      state.priceUpdateInterval = Math.min(120, state.priceUpdateInterval + 1);
+      localStorage.setItem('veloce_price_update_interval', state.priceUpdateInterval);
+      document.getElementById('interval-display').textContent = state.priceUpdateInterval + 's';
+      updatePriceTimer();
+    });
+
+    document.getElementById('manual-update-btn').addEventListener('click', function() {
+      if (!state.autoUpdatePrices) {
+        triggerPriceFluctuation();
+      }
+    });
+
+    // Target Date picker / slider linkage
+    const targetSlider = document.getElementById('target-date-slider');
+    const targetPicker = document.getElementById('target-date-picker');
+    const targetDisplay = document.getElementById('target-date-display');
+
+    function updateSimulationTargetDate(newDateStr) {
+      state.simulationDate = newDateStr;
+      targetPicker.value = newDateStr;
+      targetDisplay.textContent = formatToBrazilianDate(newDateStr);
+      syncCustomInputsAndLabels();
+      renderApp();
+    }
+
+    targetSlider.addEventListener('input', function() {
+      const offsetDays = parseInt(this.value, 10);
+      const target = new Date();
+      target.setDate(target.getDate() + offsetDays);
+      updateSimulationTargetDate(getLocalYYYYMMDD(target));
+    });
+
+    targetPicker.addEventListener('change', function() {
+      const offset = getDaysBetween(getLocalYYYYMMDD(new Date()), this.value);
+      targetSlider.value = Math.max(0, Math.min(1000, offset));
+      updateSimulationTargetDate(this.value);
+    });
+
+    document.getElementById('search-input').addEventListener('input', function() {
+      state.searchQuery = this.value;
+      renderAssetsGrid();
+    });
+
+    // --- APP STARTUP INITIALIZATION ---
+    function initialize() {
+      // Set values based on localStorage status
+      document.getElementById('cdi-input').value = (state.cdiRateAnnual * 100).toFixed(2);
+      document.getElementById('cdi-mode-btn').textContent = state.cdiMode.toUpperCase();
+      document.getElementById('selic-input').value = (state.selicRateAnnual * 100).toFixed(2);
+      document.getElementById('selic-mode-btn').textContent = state.selicMode.toUpperCase();
+      
+      const icon = document.getElementById('visibility-icon');
+      if (state.hideValues) {
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        icon.setAttribute('data-lucide', 'eye');
+      }
+
+      // Variable price update initialization
+      const intervalDisplay = document.getElementById('interval-display');
+      if (intervalDisplay) {
+        intervalDisplay.textContent = state.priceUpdateInterval + 's';
+      }
+      updatePriceTimer();
+
+      // Simulation date init
+      targetPicker.value = state.simulationDate;
+      targetSlider.value = '0';
+
+      // Load Lucide Icons
+      lucide.createIcons();
+
+      // Fire off API calls
+      fetchCdiRate();
+      fetchSelicRate();
+      fetchUsdQuote();
+      fetchHistoricalDailyCdi();
+
+      // Render Dashboard
+      renderFilterPills();
+      syncCustomInputsAndLabels();
+      updateSnowballToggleButtonsStyles();
+      renderApp();
+    }
+
+    // Launch App
+    initialize();
+  </script>
+
+  <!-- Custom Date Picker Modal -->
+  <div id="custom-datepicker-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-zinc-950 border border-zinc-850 w-full max-w-xs rounded-2xl p-5 shadow-2xl space-y-4 scale-95 transition-transform duration-300">
+      
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono">Selecionar Data</h3>
+        <button type="button" onclick="closeDatePickerModal()" class="text-zinc-500 hover:text-zinc-200 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Month & Year Selector -->
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" onclick="openDatePickerSelection('month')" class="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2 py-1.5 text-xs text-left flex justify-between items-center hover:border-violet-500 transition">
+          <span id="datepicker-month-label">Mês</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 text-zinc-500"></i>
+        </button>
+        <button type="button" onclick="openDatePickerSelection('year')" class="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2 py-1.5 text-xs text-left flex justify-between items-center hover:border-violet-500 transition font-mono">
+          <span id="datepicker-year-label">Ano</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 text-zinc-500"></i>
+        </button>
+      </div>
+
+      <!-- Weekdays -->
+      <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-mono text-zinc-500 font-semibold border-b border-zinc-900 pb-1">
+        <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
+      </div>
+
+      <!-- Days Grid -->
+      <div id="datepicker-days-grid" class="grid grid-cols-7 gap-1">
+        <!-- days will be injected dynamically -->
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="flex items-center justify-between border-t border-zinc-900 pt-3">
+        <button type="button" id="datepicker-clear-btn" onclick="clearDatePickerDate()" class="text-[10px] font-medium text-red-400 hover:text-red-300 transition">
+          Limpar
+        </button>
+        <button type="button" onclick="closeDatePickerModal()" class="px-3 py-1 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 rounded-lg text-[10px] font-medium transition">
+          Fechar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Custom Select Modal -->
+  <div id="custom-select-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-zinc-950 border border-zinc-850 w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 scale-95 transition-transform duration-300">
+      
+      <div class="flex items-center justify-between">
+        <h3 id="custom-select-title" class="text-xs font-bold text-white uppercase tracking-wider font-mono">Selecionar Opção</h3>
+        <button type="button" onclick="closeCustomSelectModal()" class="text-zinc-500 hover:text-zinc-200 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Option List -->
+      <div id="custom-select-list" class="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+        <!-- items will be injected dynamically -->
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-end border-t border-zinc-900 pt-3">
+        <button type="button" onclick="closeCustomSelectModal()" class="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 rounded-xl text-xs font-semibold transition">
+          Cancelar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Date Picker Selector Modal -->
+  <div id="datepicker-selector-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-zinc-950 border border-zinc-850 w-full max-w-xs rounded-2xl p-5 shadow-2xl space-y-4 scale-95 transition-transform duration-300">
+      
+      <div class="flex items-center justify-between">
+        <h3 id="datepicker-selector-title" class="text-xs font-bold text-white uppercase tracking-wider font-mono">Selecionar</h3>
+        <button type="button" onclick="closeDatePickerSelectorModal()" class="text-zinc-500 hover:text-zinc-200 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Option List -->
+      <div id="datepicker-selector-list" class="space-y-2">
+        <!-- items will be injected dynamically -->
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
